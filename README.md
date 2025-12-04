@@ -9,17 +9,19 @@
 
 - **기술 스택**
   - **Java 17+**
-  - **Spring Boot** (Spring Web, Spring Data JPA, Spring Security 권장)
-  - DB: **H2 / MySQL / PostgreSQL 중 택 1**
-    - 어떤 DB를 선택했는지 이 `README.md`에 꼭 명시하세요.
+  - **Spring Boot** (Spring Web, Spring Data JPA, Spring Security)
+  - DB: **PostgreSQL**, **Redis**
 - **API 공통 규칙**
   - 모든 API는 **`/api/v1/**` 형태의 엔드포인트 사용
-  - 공통 Response 구조는 아래 형식을 반드시 따릅니다.
+  - 모든 API 응답은 **공통 Response 객체(`Response<T>`)** 를 사용해야 합니다.
+  - `Response<T>` 의 JSON 구조는 다음과 같습니다.
 
     ```json
     {
       "status": "SUCCESS 또는 ERROR 등 상태 문자열",
-      "data": {}
+      "data": {
+        "...": "실제 비즈니스 응답 페이로드(제네릭 T)"
+      }
     }
     ```
 
@@ -58,6 +60,7 @@
 - **상품 (`Product`)**
   - **필수 필드 예시**
     - `id` (Long, PK)
+    - `status` (enum: `PENDING`, `APPROVED` — 기본값 `PENDING`, 관리자 승인 전까지는 `APPROVED` 가 될 수 없음)
     - `name` (String, 필수, 길이 제한)
     - `price` (Long 또는 Integer, 0 이상)
     - `stock` (Integer, 0 이상)
@@ -78,72 +81,124 @@
 
 ### 1-2. 상품 관련 API 요구사항
 
-- **상품 등록**
-  - **HTTP Method / Path**
-    - `POST /api/v1/products`
-  - **요구사항**
-    - Request Body로 `name`, `price`, `stock`, `description` 등을 받는다.
-    - Bean Validation 사용 (`@NotBlank`, `@Min`, `@Size` 등).
-    - 성공 시 공통 Response 형식으로 생성된 상품 정보를 응답한다.
+#### 상품 등록
+- **HTTP Method / Path**
+  - `POST /api/v1/products`
+- **요청 (JSON)**
+  - `name` (String, 2~50자, 필수)
+  - `price` (Number, 필수, 0 이상)
+  - `stock` (Number, 필수, 0 이상)
+  - `description` (String, 옵션)
+- **응답**
+  - 타입: `Response<ProductResponse>`
+  - `ProductResponse`
+    - `id`
+    - `status` (등록 시점에는 항상 `PENDING`)
+    - `name`
+    - `price`
+    - `stock`
+    - `description`
+    - `createdAt`, `updatedAt`
+- **요구사항**
+  - Bean Validation 사용 (예: `@NotBlank`, `@Min`, `@Size` 등)
+  - 생성 직후 `status` 는 반드시 `PENDING`
+  - `APPROVED` 되기 전까지는 일반 사용자 상품 목록/단건 조회에 노출되지 않음
 
-- **상품 목록 조회 (페이지네이션 + Query Parameter)**
-  - **HTTP Method / Path**
-    - `GET /api/v1/products`
-  - **Query Parameter 예시**
-    - `page` (기본값 0)
-    - `size` (기본값 10)
-    - `minPrice` (옵션)
-    - `maxPrice` (옵션)
-    - `name` (옵션, 상품명 부분 검색)
-  - **요구사항**
-    - Soft Delete 된 상품은 조회되면 안 된다.
-    - `data`에 아래와 같은 정보를 포함하는 형태를 권장합니다.
-      - `content`: 상품 목록 배열
-      - `totalElements`: 전체 개수
-      - `totalPages`: 전체 페이지 수
-      - `page`: 현재 페이지
-      - `size`: 페이지 크기
+#### 상품 목록 조회 (페이지네이션 + 검색)
+- **HTTP Method / Path**
+  - `GET /api/v1/products`
+- **Query Parameter**
+  - `page` (기본값 0)
+  - `size` (기본값 10)
+  - `minPrice` (옵션)
+  - `maxPrice` (옵션)
+  - `name` (옵션, 상품명 부분 검색)
+- **응답**
+  - 타입: `Response<ProductPageResponse>`
+  - `ProductPageResponse`
+    - `content`: `ProductSummary[]`
+    - `totalElements`: 전체 개수
+    - `totalPages`: 전체 페이지 수
+    - `page`: 현재 페이지
+    - `size`: 페이지 크기
+  - `ProductSummary`
+    - `id`
+    - `name`
+    - `price`
+    - `stock`
+    - `status`
+- **요구사항**
+  - Soft Delete 된 상품은 조회되면 안 됨
+  - 일반 사용자 조회 시 `status = APPROVED` 인 상품만 조회
 
-- **상품 단건 조회**
-  - **HTTP Method / Path**
-    - `GET /api/v1/products/{id}`
-  - **요구사항**
-    - Soft Delete 된 상품은 조회 시 404 또는 적절한 에러 응답 처리.
+#### 상품 단건 조회
+- **HTTP Method / Path**
+  - `GET /api/v1/products/{id}`
+- **응답**
+  - 타입: `Response<ProductDetailResponse>`
+  - `ProductDetailResponse`
+    - `id`, `status`, `name`, `price`, `stock`, `description`, `createdAt`, `updatedAt`
+- **요구사항**
+  - Soft Delete 된 상품은 조회 시 404 또는 적절한 에러 응답
+  - 일반 사용자는 `status = APPROVED` 인 상품만 조회 가능 (`ADMIN` 의 조회 범위는 2단계에서 정의)
 
-- **상품 수정**
-  - **HTTP Method / Path**
-    - `PUT /api/v1/products/{id}`
-  - **요구사항**
-    - `name`, `price`, `stock`, `description` 등의 필드를 업데이트할 수 있다.
-    - Validation 적용.
-    - Soft Delete 된 상품은 수정 불가 → 에러 응답.
+#### 상품 수정
+- **HTTP Method / Path**
+  - `PUT /api/v1/products/{id}`
+- **요청 (JSON)**
+  - `name` (String, 2~50자, 필수)
+  - `price` (Number, 필수, 0 이상)
+  - `stock` (Number, 필수, 0 이상)
+  - `description` (String, 옵션)
+- **응답**
+  - 타입: `Response<ProductResponse>`
+- **요구사항**
+  - 위 필드들을 업데이트할 수 있어야 함
+  - Validation 적용
+  - Soft Delete 된 상품은 수정 불가 → 에러 응답
 
-- **상품 삭제 (Soft Delete)**
-  - **HTTP Method / Path**
-    - `DELETE /api/v1/products/{id}`
-  - **요구사항**
-    - 실제 삭제 대신 Soft Delete 필드(`deletedAt` 또는 `isDeleted`)를 변경한다.
-    - 이후 목록/단건 조회에서 보이지 않아야 한다.
+#### 상품 삭제 (Soft Delete)
+- **HTTP Method / Path**
+  - `DELETE /api/v1/products/{id}`
+- **응답**
+  - 타입: `Response<Void>` 또는 비어 있는 `data` 를 가진 `Response<Object>` 등 프로젝트에서 명확히 정의
+- **요구사항**
+  - 실제 삭제 대신 Soft Delete 필드(`deletedAt` 또는 `isDeleted`)를 변경
+  - 이후 목록/단건 조회에서 보이지 않아야 함
 
 ### 1-3. 회원 가입 / 로그인 / 인증
 
-- **회원 가입**
-  - **HTTP Method / Path**
-    - `POST /api/v1/auth/signup`
-  - **요구사항**
-    - `email`, `password`, `name` 등을 입력받는다.
-    - 비밀번호는 **반드시 암호화(예: BCrypt)** 해서 저장한다.
+#### 회원 가입
+- **HTTP Method / Path**
+  - `POST /api/v1/auth/signup`
+- **요청 (JSON)**
+  - `email` (String, 이메일 형식, 필수)
+  - `password` (String, 8~12자, 특수문자/숫자/대문자 포함, 필수)
+  - `name` (String, 2~12자 필수)
+- **응답**
+  - 타입: `Response<UserResponse>`
+  - `UserResponse`
+    - `id`, `email`, `name`, `role`, `createdAt`, `updatedAt`
+- **요구사항**
+  - `email` 은 unique
+  - 비밀번호는 **반드시 암호화** 해서 저장
 
-- **로그인**
-  - **HTTP Method / Path**
-    - `POST /api/v1/auth/login`
-  - **요구사항**
-    - `email`, `password`를 입력받아 인증한다.
-    - 성공 시 **JWT Access Token**을 발급하여 응답한다.
-    - 이후 인증이 필요한 API 호출 시, 다음과 같이 헤더로 토큰을 전달한다.
-      - `Authorization: Bearer <access_token>`
-
-※ JWT 구현은 간단한 수준으로 해도 괜찮습니다. 다만, 토큰에 `userId`와 `role` 정보는 포함하는 것을 추천합니다.
+#### 로그인
+- **HTTP Method / Path**
+  - `POST /api/v1/auth/login`
+- **요청 (JSON)**
+  - `email` (String, 이메일 형식, 필수)
+  - `password` (String, 필수)
+- **응답**
+  - 타입: `Response<LoginResponse>`
+  - `LoginResponse`
+    - `accessToken`
+    - (선택) `refreshToken` — 3단계에서 확장 가능
+- **요구사항**
+  - `email`, `password` 로 인증
+  - 성공 시 Access Token 발급
+  - 이후 인증이 필요한 API 호출 시 헤더 사용  
+    - `Authorization: Bearer <access_token>`
 
 ---
 
@@ -159,16 +214,9 @@
 
 - **접근 제어 정책 예시**
   - **`ADMIN`**
-    - 상품 생성 / 수정 / 삭제 가능
+    - 상품 생성 / 수정 / 삭제 / 승인 가능
   - **`USER`**
-    - 상품 조회만 가능 (등록/수정/삭제 불가)
-
-- **구현 방법 예시**
-  - Spring Security를 사용하여 인증/인가를 구현합니다.
-  - JWT 토큰 안에 `role` 정보를 포함합니다.
-  - 컨트롤러 단에서 예를 들면 아래와 같이 설정할 수 있습니다.
-    - `@PreAuthorize("hasRole('ADMIN')")`
-    - 또는 URL 별 Security 설정 클래스에서 Ant Matcher로 권한 제어
+    - 승인 완료(`APPROVED`) 상품 조회만 가능 (등록/수정/삭제/승인 불가)
 
 ### 2-2. 주문 도메인 설계
 
@@ -239,6 +287,23 @@
     - 일반 사용자는 **본인 주문만** 조회할 수 있다.
     - `ADMIN`은 모든 사용자의 주문을 조회할 수 있다.
 
+### 2-5. 상품 승인 API
+
+#### 상품 승인
+- **HTTP Method / Path**
+  - `PATCH /api/v1/products/{id}/approve`
+- **요청**
+  - (선택) 승인 사유 등 부가 정보 — 필드는 자유롭게 설계
+- **응답**
+  - 타입: `Response<ProductResponse>`
+  - `ProductResponse`
+    - `id`, `status`, `name`, `price`, `stock`, `description`, `createdAt`, `updatedAt`
+- **요구사항**
+  - `status = PENDING` 인 상품만 승인 가능 (그 외 상태에서 호출 시 에러)
+  - 승인 성공 시 `status = APPROVED` 로 변경
+  - 승인 이후부터 일반 사용자 상품 목록/단건 조회에 노출
+  - 이 API는 `ADMIN` Role 에서만 호출 가능
+
 ---
 
 ## 3단계: 고급 주제 (동시성, N+1, Refresh Token, 캐싱, 비동기)
@@ -246,112 +311,65 @@
 3단계는 **시간/실력에 따라 선택적으로 구현**해도 됩니다.  
 다만, **동시성 관련 내용은 꼭 한 번 경험**해보는 것을 추천합니다.
 
-### 3-1. Refresh Token
+### 3-1. Refresh Token (선택택)
 
 - **목표**
-  - Access Token의 만료 시간을 짧게 설정.
-  - Refresh Token으로 Access Token을 재발급하는 흐름을 경험해보기.
+  - Access Token의 만료 시간을 짧게 설정한다.
+  - Refresh Token으로 Access Token을 재발급하는 전체 흐름을 스스로 설계하고 구현해본다.
 
-- **요구사항 예시**
-  - `POST /api/v1/auth/refresh`
-    - 유효한 Refresh Token을 보내면 새로운 Access Token을 발급.
-  - Refresh Token 저장 전략 예시
-    - DB 테이블에 저장
-    - 또는 In-memory (간단 구현용) 저장소
-  - 로그아웃 시 Refresh Token을 무효화하는 로직을 구현해보면 좋습니다.
+- **기본 요구사항**
+  - `POST /api/v1/auth/refresh` 엔드포인트를 하나 정의한다.
+    - 유효한 Refresh Token을 보내면 새로운 Access Token을 발급한다.
+  - Refresh Token을 어디에, 어떤 형식으로 저장/관리할지는 직접 설계한다.
+  - 로그아웃 시 Refresh Token을 어떻게 무효화할지에 대한 정책을 정하고 구현한다.
 
-### 3-2. N+1 문제 경험하기
+### 3-2. N+1 문제 경험하기 (선택)
 
-- **예시 포인트**
-  - 주문 목록 조회 시 `Order` + `OrderItem` + `Product`를 함께 조회하는 API에서 N+1 문제가 발생하기 쉽습니다.
-  - 처음에는 단순히 연관관계만 설정해서 구현해보고, 실제 로그에서 **쿼리 개수**를 확인해보세요.
+- **목표**
+  - 연관관계가 걸린 엔티티를 조회할 때 발생하는 N+1 문제를 직접 재현하고, 해결 방법을 스스로 조사해본다.
 
-- **개선 방법 예시**
-  - JPQL `fetch join`
-  - `@EntityGraph`
-  - `hibernate.default_batch_fetch_size` 설정 등
+- **기본 요구사항**
+  - N+1 문제가 발생하기 쉬운 API 를 하나 선택해 구현한다. (예: 주문 목록 + 주문상품 + 상품 조회 등)
+  - 실제 실행 시 쿼리 개수를 확인하여 N+1 문제를 재현한다.
+  - 어떤 방식으로 이 문제를 해결했는지, 적용 전/후 차이를 `README` 에 간단히 정리한다.
 
-- **요구사항**
-  - 어느 API에서 N+1이 발생했는지,
-  - 어떤 방법으로 해결했는지를 `README`에 간단히 정리해주세요.
+### 3-3. 동시성 문제 / Race Condition 해결 (선택)
 
-### 3-3. 동시성 문제 / Race Condition 해결 (중요)
+- **시나리오 1: 재고 차감 동시성**
+  - 재고가 1개 남은 인기 상품에 두 명 이상이 동시에 주문을 넣었을 때,
+  - 재고가 0 아래로 내려가거나, 실제 재고보다 많이 팔리는 문제가 발생하지 않도록 해야 한다.
 
-- **시나리오 예시**
-  - 재고가 1개 남은 인기 상품에 두 명이 동시에 주문을 넣었을 때,
-  - 재고가 0 아래로 내려가거나, 실제 재고보다 많이 팔리는 문제가 발생할 수 있습니다.
+- **시나리오 2: 상품 등록/승인 동시성**
+  - 동일한 비즈니스 키(예: 상품명 등)에 대해 여러 클라이언트가 동시에 상품 등록 요청을 보내는 상황을 가정한다.
+  - 관리자 승인 흐름(상품 상태 `PENDING` → `APPROVED`)과 함께 고려했을 때,
+    - 중복 상품이 과도하게 생성되거나,
+    - 승인되지 말아야 할 상품이 노출되는 등의 문제가 발생하지 않도록 해야 한다.
+  - 여러 개의 상품 등록 요청과 승인 API (`PATCH /api/v1/products/{id}/approve`) 호출이 섞여 들어오는 상황을 테스트해본다.
 
 - **필수 요구**
-  - 이 문제를 **재현할 수 있는 간단한 테스트 코드**나 설명을 남겨주세요.
-  - 해결 방법 중 **하나 이상**을 적용해보세요.
-    - 비관적 락 (`@Lock(PESSIMISTIC_WRITE)` 등)
-    - 낙관적 락 (`@Version`)
-    - Redis 분산 락 (선택)
-  - 해결 전/후에 대해 `README`에 간단히 설명을 남기면 좋습니다.
+  - 위 두 시나리오 모두에 대해, 동시성 문제가 발생하는 상황을 재현할 수 있는 간단한 테스트 코드나 설명을 남긴다.
+  - 각 시나리오에서 동시성 문제를 어떻게 해결할지 스스로 조사하여 하나 이상 선택하고 적용한다.
+  - 해결 전/후에 대해 `README` 에 간단히 설명을 남긴다.
 
 ### 3-4. 캐싱 (선택)
 
-- **예시**
-  - 자주 조회되는 **상품 목록** 또는 **상품 상세** API에 캐시를 적용합니다.
-  - Spring Cache (`@Cacheable`) 등을 활용할 수 있습니다.
-- **요구사항 예시**
-  - 캐시 적용 전/후의 차이를 간단하게 로그나 설명으로 남겨주세요.
+- **목표**
+  - 자주 조회되는 API 에 캐시를 적용해 보고, 캐시 적용 전/후의 차이를 이해한다.
+
+- **기본 요구사항**
+  - 캐시를 적용할 API 를 하나 이상 선택한다. (예: 상품 목록, 상품 상세 등)
+  - 어떤 방식으로 캐시를 적용했는지, 캐시 전/후 차이를 로그나 설명으로 정리한다.
 
 ### 3-5. 비동기 처리 (선택)
 
-- **예시 아이디어**
-  - 주문 완료 후, **알림 메일 전송**을 비동기로 처리한다고 가정합니다.
-  - `@Async` 또는 이벤트 발행(`ApplicationEventPublisher`)을 이용해 구현해볼 수 있습니다.
-  - 실제 메일 전송 대신 **로그 출력**으로 대체해도 됩니다.
+- **목표**
+  - 요청-응답 흐름과 분리된 비동기 작업을 설계하고 구현해본다.
 
----
+- **기본 요구사항**
+  - 비동기로 처리할 작업 하나를 정한다. (예: 주문 완료 후 알림 전송 등)
+  - 어떤 방식으로 비동기 처리를 구현했는지, 동기 처리와 비교했을 때의 차이를 스스로 정리한다.
 
-## 제출 시 포함하면 좋은 내용
 
-- **README.md**
-  - 프로젝트 실행 방법 (필수 의존성, DB 설정, `application.yml` 예시 등)
-  - 주요 API 목록 (엔드포인트, 메서드, 간단 설명)
-  - 2단계, 3단계에서 구현한
-    - **권한 정책**
-    - **주문 상태 전이 규칙**
-    - **동시성 / N+1 / 캐싱 / 비동기 처리** 등에 대한 간단한 정리
 
-- **테스트 코드**
-  - 최소한 서비스 레이어 또는 도메인 레벨의 단위/통합 테스트 몇 개를 작성해보세요.
-
----
-
-## 평가 관점 (가이드)
-
-아래 항목들을 기준으로 스스로 점검해보거나, 코드 리뷰 시 참고용으로 사용할 수 있습니다.
-
-- **1단계**
-  - CRUD, Validation, Soft Delete, 공통 Response 구조 준수 여부
-  - 기본적인 레이어드 아키텍처 적용 여부
-- **2단계**
-  - 인증/인가 설계, Role 기반 접근 제어 구현 여부
-  - 주문 상태 전이 로직이 명확하게 구현되었는지
-  - 본인 데이터만 안전하게 조회/수정 가능한지
-- **3단계**
-  - 실무에서 자주 나오는 문제들에 대한 이해 및 해결 시도
-    - N+1 문제 분석 및 해결
-    - 동시성 이슈 재현 및 해결
-    - Refresh Token, 캐싱, 비동기 처리 등 (선택 구현)
-
----
-
-## (TODO) 프로젝트 실행 방법 작성
-
-아래 내용을 참고해서 본인이 구현한 방식에 맞게 내용을 채워 넣으세요.
-
-- **빌드 & 실행 예시**
-  - `./gradlew bootRun` 또는 `mvn spring-boot:run`
-- **필수 환경 변수 또는 설정**
-  - DB 주소, 계정 정보
-  - JWT 시크릿 값 및 만료 시간
-- **테스트 실행**
-  - `./gradlew test` 또는 `mvn test`
-
-실행 방법과 주요 설정을 명확하게 적어두면, 다른 사람이 프로젝트를 받아서 실행해보기 편해집니다.
 
 
