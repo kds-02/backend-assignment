@@ -369,6 +369,66 @@
   - 비동기로 처리할 작업 하나를 정한다. (예: 주문 완료 후 알림 전송 등)
   - 어떤 방식으로 비동기 처리를 구현했는지, 동기 처리와 비교했을 때의 차이를 스스로 정리한다.
 
+---
+
+## 실행 방법
+
+### 1. 인프라 실행 (Docker Compose)
+
+프로젝트 루트 디렉토리에서 다음 명령어로 PostgreSQL과 Redis를 실행합니다:
+
+```bash
+docker-compose up -d
+```
+
+서비스 상태 확인:
+```bash
+docker-compose ps
+```
+
+서비스 중지:
+```bash
+docker-compose down
+```
+
+데이터까지 함께 삭제하려면:
+```bash
+docker-compose down -v
+```
+
+### 2. 애플리케이션 실행
+
+Gradle을 사용하여 애플리케이션을 실행합니다:
+
+```bash
+# Windows
+gradlew.bat bootRun
+
+# Linux/Mac
+./gradlew bootRun
+```
+
+또는 빌드 후 실행:
+
+```bash
+# 빌드
+./gradlew build
+
+# 실행
+java -jar build/libs/shopping-mall-0.0.1-SNAPSHOT.jar
+```
+
+### 3. 설정 확인
+
+`application.properties` 파일에서 다음 설정을 확인하고 필요시 수정하세요:
+
+- PostgreSQL 연결 정보 (기본값: localhost:5432)
+- Redis 연결 정보 (기본값: localhost:6379)
+- JWT Secret Key (프로덕션 환경에서는 반드시 변경 필요)
+
+### 4. 데이터베이스 초기화
+
+JPA의 `ddl-auto=update` 설정으로 자동으로 테이블이 생성됩니다.
 
 
 
