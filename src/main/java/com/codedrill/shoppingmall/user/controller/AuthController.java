@@ -24,15 +24,15 @@ public class AuthController {
     @PostMapping("/signup")
     @Operation(summary = "회원 가입")
     public Response<UserResponse> signup(@Valid @RequestBody SignupRequest request) {
-        //TODO: 회원 가입 구현
-        return Response.success();
+        UserResponse userResponse = userService.signup(request);
+        return Response.success(userResponse);
     }
 
     @PostMapping("/login")
     @Operation(summary = "로그인")
     public Response<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
-        //TODO: 로그인 구현
-        return Response.success();
+        LoginResponse loginResponse = userService.login(request);
+        return Response.success(loginResponse);
     }
 }
 

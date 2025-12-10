@@ -1,6 +1,7 @@
 package com.codedrill.shoppingmall.common.util;
 
 import com.codedrill.shoppingmall.common.config.JwtConfig;
+import com.codedrill.shoppingmall.common.exception.JwtTokenInvalidException;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -85,7 +86,7 @@ public class JwtUtil {
             Claims claims = extractClaims(token);
             return claims.getExpiration().before(new Date());
         } catch (Exception e) {
-            return true;
+            throw JwtTokenInvalidException.INSTANCE;
         }
     }
 
@@ -93,7 +94,7 @@ public class JwtUtil {
         try {
             return !isTokenExpired(token);
         } catch (Exception e) {
-            return false;
+            throw JwtTokenInvalidException.INSTANCE;
         }
     }
 }

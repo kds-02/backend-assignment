@@ -1,5 +1,6 @@
 package com.codedrill.shoppingmall.common.config;
 
+import com.codedrill.shoppingmall.common.exception.JwtTokenInvalidException;
 import com.codedrill.shoppingmall.common.util.JwtUtil;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -46,8 +47,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 );
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authentication);
-            } catch (Exception e) {
+            } catch (JwtTokenInvalidException e) {
                 log.error("JWT 토큰 처리 중 오류 발생", e);
+                request.setAttribute(ATTRIBUTE_TOKEN_ERROR, e);
             }
         }
 
