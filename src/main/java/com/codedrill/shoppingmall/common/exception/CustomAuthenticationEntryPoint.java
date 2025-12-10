@@ -24,17 +24,28 @@ public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint 
     @Override
     public void commence(HttpServletRequest request, HttpServletResponse response, AuthenticationException authException) {
         Exception exception = (Exception) request.getAttribute(ATTRIBUTE_TOKEN_ERROR);
-        if (exception == null) {
+        
+        if (exception != null) {
+            if (exception instanceof JwtTokenInvalidException jwtTokenInvalidException) {
+                resolver.resolveException(request, response, null, jwtTokenInvalidException);
+            } else {
+                // 처리되지 않은 exception이 발생한 경우입니다.
+                log.error("{}: {}", exception.getClass(), exception.getMessage());
+                resolver.resolveException(request, response, null, exception);
+            }
             return;
         }
 
-        if (exception instanceof JwtTokenInvalidException jwtTokenInvalidException) {
-            resolver.resolveException(request, response, null, jwtTokenInvalidException);
-        } else {
-            // 처리되지 않은 exception이 발생한 경우입니다.
-            log.error("{}: {}", exception.getClass(), exception.getMessage());
-            resolver.resolveException(request, response, null, exception);
+        // 토큰 에러가 없는 경우 (인증이 필요한데 토큰이 없거나 유효하지 않은 경우)
+        // BadCredentialsException을 던져서 GlobalExceptionHandler가 처리하도록 함
+        if (response.isCommitted()) {
+            log.warn("응답이 이미 커밋되었습니다. URI: {}", request.getRequestURI());
+            return;
         }
+
+        org.springframework.security.authentication.BadCredentialsException badCredentialsException = 
+            new org.springframework.security.authentication.BadCredentialsException("인증이 필요합니다.");
+        resolver.resolveException(request, response, null, badCredentialsException);
     }
 
 }

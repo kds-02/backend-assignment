@@ -58,3 +58,16 @@ dependencies {
 tasks.named('test') {
     useJUnitPlatform()
 }
+
+// IntelliJ IDEA에서 실행할 때 자동 빌드 보장
+tasks.named('compileJava') {
+    // 변경된 파일만 컴파일하도록 설정
+    options.incremental = true
+}
+
+// bootRun 전에 클린 (더 가벼움 - 클래스 파일만 삭제)
+tasks.named('bootRun') {
+    dependsOn 'cleanClasses'
+    // 실행 전에 항상 컴파일
+    dependsOn 'compileJava'
+}
