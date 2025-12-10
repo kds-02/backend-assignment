@@ -1,4 +1,4 @@
-package com.codedrill.shoppingmall.config;
+package com.codedrill.shoppingmall.common.config;
 
 import com.codedrill.shoppingmall.common.util.JwtUtil;
 import jakarta.servlet.FilterChain;

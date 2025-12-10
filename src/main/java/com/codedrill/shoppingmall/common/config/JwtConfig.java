@@ -1,4 +1,4 @@
-package com.codedrill.shoppingmall.config;
+package com.codedrill.shoppingmall.common.config;
 
 import lombok.Getter;
 import lombok.Setter;

@@ -1,6 +1,6 @@
 package com.codedrill.shoppingmall.common.util;
 
-import com.codedrill.shoppingmall.config.JwtConfig;
+import com.codedrill.shoppingmall.common.config.JwtConfig;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
