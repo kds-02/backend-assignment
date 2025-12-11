@@ -27,8 +27,8 @@ public class SecurityConfig {
 
     @Bean("password")
     public PasswordEncoder passwordEncoder() {
-        //TODO: 적절한 PasswordEncoder 구현
-        return null;
+        // BCryptPasswordEncoder로 비밀번호 암호화
+        return new BCryptPasswordEncoder();
     }
 
     @Bean
@@ -38,6 +38,7 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin))
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         //TODO: 적절하게 리소스별 권한 설정
                         .anyRequest().permitAll()
                 )

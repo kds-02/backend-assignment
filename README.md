@@ -48,6 +48,12 @@
 #### 엔드포인트 규칙
 - 모든 API는 **`/api/v1/**` 형태의 엔드포인트 사용**
 
+#### Swagger / OpenAPI
+- Swagger UI 제공: `http://localhost:8080/swagger-ui/index.html`
+- OpenAPI 문서: `http://localhost:8080/v3/api-docs`
+- Security 설정 시 **Swagger 관련 경로는 permitAll**로 허용해야 합니다.
+  - 예) `/swagger-ui/**`, `/v3/api-docs/**`, `/swagger-resources/**` 등
+
 #### 응답 형식
   - 모든 API 응답은 **공통 Response 객체(`Response<T>`)** 를 사용해야 합니다.
 - `Response<T>` 의 JSON 구조:
@@ -206,7 +212,7 @@ POST /api/v1/auth/signup
 
 **비즈니스 로직**
 - `email`은 unique해야 함 (중복 시 에러 응답)
-- 비밀번호는 **반드시 암호화**해서 저장 (BCrypt 권장)
+- 비밀번호는 **반드시 암호화**해서 저장 (Spring Security `BCryptPasswordEncoder` 사용 권장)
 - 기본 `role`은 `USER`로 설정
 
 ---

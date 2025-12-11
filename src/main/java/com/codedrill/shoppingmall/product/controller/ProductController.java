@@ -10,7 +10,10 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @Slf4j
 @RestController
@@ -70,6 +73,17 @@ public class ProductController {
     @Operation(summary = "상품 승인")
     public Response<ProductResponse> approveProduct(@PathVariable Long id) {
         //TODO: 상품 승인 구현
+
+        return Response.success();
+    }
+
+    @PostMapping("/{id}/images")
+    @Operation(summary = "상품 이미지 업로드")
+    public Response<ProductImageUploadResponse> uploadProductImages(
+            @PathVariable Long id,
+            @RequestParam("images") List<MultipartFile> images
+    ) {
+        //TODO: 상품 이미지 업로드 구현
 
         return Response.success();
     }

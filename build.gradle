@@ -1,6 +1,6 @@
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '4.0.0'
+    id 'org.springframework.boot' version '3.2.5'
     id 'io.spring.dependency-management' version '1.1.7'
 }
 
@@ -24,11 +24,20 @@ repositories {
     mavenCentral()
 }
 
+configurations.configureEach {
+    resolutionStrategy.eachDependency { details ->
+        if (details.requested.group == 'org.springframework.boot' && details.requested.version != null && details.requested.version != '3.2.5') {
+            details.useVersion '3.2.5'
+            details.because 'Spring Boot 버전을 3.2.5로 통일하여 중복 빈 정의 문제 방지'
+        }
+    }
+}
+
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
     implementation 'org.springframework.boot:spring-boot-starter-security'
-    implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter:4.0.0'
     implementation 'com.fasterxml.jackson.core:jackson-databind'
@@ -43,14 +52,11 @@ dependencies {
     annotationProcessor 'org.projectlombok:lombok'
     annotationProcessor "jakarta.annotation:jakarta.annotation-api"
     annotationProcessor "jakarta.persistence:jakarta.persistence-api"
-    testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
-    testImplementation 'org.springframework.boot:spring-boot-starter-data-redis-test'
-    testImplementation 'org.springframework.boot:spring-boot-starter-security-test'
-    testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.security:spring-security-test'
     testImplementation 'org.springframework.boot:spring-boot-testcontainers'
-    testImplementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter-test:4.0.0'
-    testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
-    testImplementation 'org.testcontainers:testcontainers-postgresql'
+    testImplementation 'org.testcontainers:junit-jupiter'
+    testImplementation 'org.testcontainers:postgresql'
     testImplementation 'org.mockito:mockito-core'
     testImplementation 'org.mockito:mockito-junit-jupiter'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'

@@ -65,4 +65,12 @@ public class OrderController {
         return Response.success();
     }
 
+    @PatchMapping("/{id}/complete")
+    @Operation(summary = "주문 완료")
+    public Response<OrderResponse> completeOrder(@PathVariable Long id) {
+        //TODO: 주문 완료 구현
+
+        return Response.success();
+    }
+
 }
