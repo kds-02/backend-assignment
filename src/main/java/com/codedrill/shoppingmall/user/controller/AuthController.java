@@ -4,6 +4,8 @@ import com.codedrill.shoppingmall.common.consts.RestUriConst;
 import com.codedrill.shoppingmall.common.response.Response;
 import com.codedrill.shoppingmall.user.dto.LoginRequest;
 import com.codedrill.shoppingmall.user.dto.LoginResponse;
+import com.codedrill.shoppingmall.user.dto.ReissueRequest;
+import com.codedrill.shoppingmall.user.dto.ReissueResponse;
 import com.codedrill.shoppingmall.user.dto.SignupRequest;
 import com.codedrill.shoppingmall.user.dto.UserResponse;
 import com.codedrill.shoppingmall.user.service.UserService;
@@ -24,15 +26,25 @@ public class AuthController {
     @PostMapping("/signup")
     @Operation(summary = "회원 가입")
     public Response<UserResponse> signup(@Valid @RequestBody SignupRequest request) {
-        UserResponse userResponse = userService.signup(request);
-        return Response.success(userResponse);
+        //TODO: 회원가입 구현
+
+        return Response.success();
     }
 
     @PostMapping("/login")
     @Operation(summary = "로그인")
     public Response<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
-        LoginResponse loginResponse = userService.login(request);
-        return Response.success(loginResponse);
+        //TODO: 로그인 구현
+
+        return Response.success();
+    }
+
+    @PostMapping("/reissue")
+    @Operation(summary = "토큰 재발급")
+    public Response<ReissueResponse> reissue(@Valid @RequestBody ReissueRequest request) {
+        //TODO: 토큰 재발급 구현
+
+        return Response.success();
     }
 }
 

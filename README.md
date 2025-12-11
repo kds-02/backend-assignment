@@ -214,6 +214,32 @@
   - 이후 인증이 필요한 API 호출 시 헤더 사용  
     - `Authorization: Bearer <access_token>`
 
+#### 토큰 재발급 (Reissue)
+- **HTTP Method / Path**
+  - `POST /api/v1/auth/reissue`
+- **요청 (JSON)**
+  - `refreshToken` (String, 필수)
+- **응답**
+  - 타입: `Response<ReissueResponse>`
+  - `ReissueResponse`
+    - `accessToken`
+- **요구사항**
+  - 유효한 Refresh Token을 받아 새로운 Access Token을 발급
+  - Refresh Token 검증 후 유효하면 새로운 Access Token 반환
+
+#### 자기 자신의 정보 조회
+- **HTTP Method / Path**
+  - `GET /api/v1/users`
+- **인증**
+  - 인증된 사용자만 접근 가능
+- **응답**
+  - 타입: `Response<UserResponse>`
+  - `UserResponse`
+    - `id`, `email`, `name`, `role`, `createdAt`, `updatedAt`
+- **요구사항**
+  - 로그인한 사용자 본인의 정보만 조회 가능
+  - JWT 토큰에서 사용자 정보를 추출하여 반환
+
 ---
 
 ## 2단계: Role 기반 접근 제어 + 주문 도메인 + 상태 머신

@@ -3,15 +3,14 @@ package com.codedrill.shoppingmall.order.entity;
 import com.codedrill.shoppingmall.common.entity.BaseEntity;
 import com.codedrill.shoppingmall.product.entity.Product;
 import jakarta.persistence.*;
-import lombok.AccessLevel;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 @Entity
 @Table(name = "order_items")
 @Getter
+@Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor
 public class OrderItem extends BaseEntity {
 
     @Id
@@ -32,12 +31,5 @@ public class OrderItem extends BaseEntity {
     @Column(nullable = false)
     private Integer quantity;
 
-    @Builder
-    public OrderItem(Order order, Product product, Long price, Integer quantity) {
-        this.order = order;
-        this.product = product;
-        this.price = price;
-        this.quantity = quantity;
-    }
 }
 

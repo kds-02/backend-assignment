@@ -3,15 +3,14 @@ package com.codedrill.shoppingmall.product.entity;
 import com.codedrill.shoppingmall.common.entity.BaseEntity;
 import com.codedrill.shoppingmall.common.enums.EnumProductStatus;
 import jakarta.persistence.*;
-import lombok.AccessLevel;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 @Entity
 @Table(name = "products")
 @Getter
+@Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor
 public class Product extends BaseEntity {
 
     @Id
@@ -35,35 +34,7 @@ public class Product extends BaseEntity {
     private String description;
 
     @Column(nullable = false)
-    private Long userId; // 상품을 등록한 사용자 ID
+    private Long userId;
 
-    @Builder
-    public Product(EnumProductStatus status, String name, Long price, Integer stock, String description, Long userId) {
-        this.status = status;
-        this.name = name;
-        this.price = price;
-        this.stock = stock;
-        this.description = description;
-        this.userId = userId;
-    }
-
-    public void update(String name, Long price, Integer stock, String description) {
-        this.name = name;
-        this.price = price;
-        this.stock = stock;
-        this.description = description;
-    }
-
-    public void approve() {
-        this.status = EnumProductStatus.APPROVED;
-    }
-
-    public void decreaseStock(Integer quantity) {
-        this.stock -= quantity;
-    }
-
-    public void increaseStock(Integer quantity) {
-        this.stock += quantity;
-    }
 }
 

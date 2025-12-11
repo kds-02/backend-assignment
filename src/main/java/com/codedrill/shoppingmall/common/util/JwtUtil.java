@@ -1,6 +1,5 @@
 package com.codedrill.shoppingmall.common.util;
 
-import com.codedrill.shoppingmall.common.config.JwtConfig;
 import com.codedrill.shoppingmall.common.exception.JwtTokenInvalidException;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -17,46 +16,29 @@ import java.util.Date;
 @RequiredArgsConstructor
 public class JwtUtil {
 
-    private final JwtConfig jwtConfig;
-
     @Value("${jwt.secret}")
     String jwtSecretStr;
 
-    @Value("${jwt.token.access-expiration-time}")
-    public static Long AC_EXPIRATION_IN_MS;
+    // AccessToken 만료 시간
+    public static Long AC_EXPIRATION_IN_MS = 3600000L;
 
-    @Value("${jwt.token.refresh-expiration-time}")
-    public static Long RF_EXPIRATION_IN_MS;
+    // RefreshToken 만료 시간
+    public static Long RF_EXPIRATION_IN_MS = 604800000L;
 
     private SecretKey getSigningKey() {
         return Keys.hmacShaKeyFor(jwtSecretStr.getBytes(StandardCharsets.UTF_8));
     }
 
     public String generateAccessToken(Long userId, String email, String name, String role) {
-        Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + jwtConfig.getAccessTokenExpiration());
+        //TODO: accessToken 생성 로직 구현
 
-        return Jwts.builder()
-                .subject(String.valueOf(userId))
-                .claim("email", email)
-                .claim("role", role)
-                .claim("name", name)
-                .issuedAt(now)
-                .expiration(expiryDate)
-                .signWith(getSigningKey())
-                .compact();
+        return null;
     }
 
     public String generateRefreshToken(Long userId) {
-        Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + jwtConfig.getRefreshTokenExpiration());
+        //TODO: refreshToken 생성 로직 구현
 
-        return Jwts.builder()
-                .subject(String.valueOf(userId))
-                .issuedAt(now)
-                .expiration(expiryDate)
-                .signWith(getSigningKey())
-                .compact();
+        return null;
     }
 
     public Claims extractClaims(String token) {

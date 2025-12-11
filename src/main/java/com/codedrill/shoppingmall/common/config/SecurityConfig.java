@@ -27,7 +27,8 @@ public class SecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+        //TODO: 적절한 PasswordEncoder 구현
+        return null;
     }
 
     @Bean
@@ -37,25 +38,7 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin))
                 .authorizeHttpRequests(auth -> auth
-                        // 인증 관련 API는 모두 허용
-                        .requestMatchers("/api/v1/auth/**").permitAll()
-                        
-                        // 상품 관련 API
-                        .requestMatchers(HttpMethod.POST, "/api/v1/products").authenticated() // 인증된 사용자 모두 등록 가능
-                        .requestMatchers(HttpMethod.PUT, "/api/v1/products/**").authenticated() // 인증된 사용자 (본인만 수정 가능, 서비스 레이어에서 체크)
-                        .requestMatchers(HttpMethod.PATCH, "/api/v1/products/**").hasRole("ADMIN") // 승인은 ADMIN만
-                        .requestMatchers(HttpMethod.DELETE, "/api/v1/products/**").hasRole("ADMIN") // 삭제는 ADMIN만
-                        
-                        // 상품 조회는 인증된 사용자 모두 접근 가능 (USER, ADMIN)
-                        .requestMatchers(HttpMethod.GET, "/api/v1/products/**").permitAll()
-                        
-                        // 주문 관련 API는 인증된 사용자 모두 접근 가능
-                        .requestMatchers("/api/v1/orders/**").authenticated()
-                        
-                        // 사용자 관련 API는 인증된 사용자 모두 접근 가능
-                        .requestMatchers("/api/v1/users/**").authenticated()
-                        
-                        // 나머지 요청은 인증 필요
+                        //TODO: 적절하게 리소스별 권한 설정
                         .anyRequest().permitAll()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)

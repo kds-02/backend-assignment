@@ -2,6 +2,7 @@ package com.codedrill.shoppingmall.user.controller;
 
 import com.codedrill.shoppingmall.common.consts.RestUriConst;
 import com.codedrill.shoppingmall.common.response.Response;
+import com.codedrill.shoppingmall.user.dto.UserResponse;
 import com.codedrill.shoppingmall.user.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
@@ -19,9 +20,9 @@ public class UserController {
     private final UserService userService;
 
     @GetMapping
-    @Operation(summary = "사용자 목록 조회")
-    public Response<Object> getUserList() {
-        //TODO: 사용자 목록 조회 구현
+    @Operation(summary = "자신의 정보 받아오기")
+    public Response<UserResponse> getMyInfo() {
+        //TODO: 자기 자신의 정보 받아오기 구현
 
         return Response.success();
     }

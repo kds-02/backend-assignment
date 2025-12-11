@@ -26,62 +26,43 @@ public class OrderController {
     @PostMapping
     @Operation(summary = "주문 생성")
     public Response<OrderResponse> createOrder(
-            @Valid @RequestBody OrderCreateRequest request,
-            @AuthenticationPrincipal PrincipalDetails user
+            @Valid @RequestBody OrderCreateRequest request
     ) {
-        OrderResponse order = orderService.createOrder(request, user);
-        return Response.success(order);
+        //TODO: 주문 생성 구현
+
+        return Response.success();
     }
 
     @GetMapping("/my")
     @Operation(summary = "내 주문 목록 조회")
-    public Response<Page<OrderResponse>> getMyOrders(
-            @RequestParam(value = "page", defaultValue = "0") Integer page,
-            @RequestParam(value = "size", defaultValue = "10") Integer size,
-            @RequestParam(value = "status", required = false) String status,
-            @AuthenticationPrincipal PrincipalDetails user
-    ) {
-        Page<OrderResponse> orders = orderService.getMyOrders(page, size, status, user);
-        return Response.success(orders);
+    public Response<Page<OrderResponse>> getMyOrders() {
+        //TODO: 내 주문 목록 조회 구현
+
+        return Response.success();
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "주문 상세 조회")
-    public Response<OrderDetailResponse> getOrder(
-            @PathVariable("id") Long id,
-            @AuthenticationPrincipal PrincipalDetails user
-    ) {
-        OrderDetailResponse order = orderService.getOrder(id, user);
-        return Response.success(order);
+    public Response<OrderDetailResponse> getOrder(@PathVariable Long id) {
+        //TODO: 주문 상세 조회 구현
+
+        return Response.success();
     }
 
     @PatchMapping("/{id}/pay")
     @Operation(summary = "주문 결제")
-    public Response<OrderResponse> payOrder(
-            @PathVariable("id") Long id,
-            @AuthenticationPrincipal PrincipalDetails user
-    ) {
-        OrderResponse order = orderService.payOrder(id, user);
-        return Response.success(order);
+    public Response<OrderResponse> payOrder(@PathVariable Long id) {
+        //TODO: 주문 결제 구현
+
+        return Response.success();
     }
 
     @PatchMapping("/{id}/cancel")
     @Operation(summary = "주문 취소")
-    public Response<OrderResponse> cancelOrder(
-            @PathVariable("id") Long id,
-            @AuthenticationPrincipal PrincipalDetails user
-    ) {
-        OrderResponse order = orderService.cancelOrder(id, user);
-        return Response.success(order);
+    public Response<OrderResponse> cancelOrder(@PathVariable Long id) {
+        //TODO: 주문 취소 구현
+
+        return Response.success();
     }
 
-    @PatchMapping("/{id}/complete")
-    @Operation(summary = "주문 완료")
-    public Response<OrderResponse> completeOrder(
-            @PathVariable("id") Long id,
-            @AuthenticationPrincipal PrincipalDetails user
-    ) {
-        OrderResponse order = orderService.completeOrder(id, user);
-        return Response.success(order);
-    }
 }
