@@ -25,7 +25,7 @@ public class SecurityConfig {
     private final CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
     private final CustomAccessDeniedHandler customAccessDeniedHandler;
 
-    @Bean
+    @Bean("password")
     public PasswordEncoder passwordEncoder() {
         //TODO: 적절한 PasswordEncoder 구현
         return null;

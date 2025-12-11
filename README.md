@@ -5,16 +5,52 @@
 
 ---
 
+## 시스템 개요
+
+### 도메인 설명
+
+이 프로젝트는 **온라인 쇼핑몰 백엔드 시스템**을 구현합니다. 주요 도메인은 다음과 같습니다:
+
+1. **사용자 (User) 도메인**
+   - 회원 가입, 로그인, 인증/인가 관리
+   - Role 기반 접근 제어 (USER, ADMIN)
+   - JWT 토큰 기반 인증
+
+2. **상품 (Product) 도메인**
+   - 상품 CRUD 기능
+   - 상품 승인 시스템 (PENDING → APPROVED)
+   - 페이지네이션 및 검색 기능
+   - Soft Delete 지원
+
+3. **주문 (Order) 도메인**
+   - 주문 생성 및 관리
+   - 상태 머신 기반 주문 상태 관리 (CREATED → PAID → COMPLETED / CANCELLED)
+   - 재고 관리 및 동시성 제어
+
+### 시스템 아키텍처
+
+- **레이어드 아키텍처**: Controller → Service → Repository → Entity
+- **인증/인가**: Spring Security + JWT
+- **데이터베이스**: PostgreSQL (메인 DB), Redis (캐시/세션)
+- **API 형식**: RESTful API (`/api/v1/**`)
+
+---
+
 ## 0. 공통 규칙
 
-- **기술 스택**
+### 기술 스택
   - **Java 17+**
   - **Spring Boot** (Spring Web, Spring Data JPA, Spring Security)
-  - DB: **PostgreSQL**, **Redis**
-- **API 공통 규칙**
-  - 모든 API는 **`/api/v1/**` 형태의 엔드포인트 사용
+- **DB**: PostgreSQL, Redis
+
+### API 공통 규칙
+
+#### 엔드포인트 규칙
+- 모든 API는 **`/api/v1/**` 형태의 엔드포인트 사용**
+
+#### 응답 형식
   - 모든 API 응답은 **공통 Response 객체(`Response<T>`)** 를 사용해야 합니다.
-  - `Response<T>` 의 JSON 구조는 다음과 같습니다.
+- `Response<T>` 의 JSON 구조:
 
     ```json
     {
@@ -25,13 +61,14 @@
     }
     ```
 
-- **Soft Delete 정책**
-  - 실제 DB 삭제(DELETE 쿼리)를 날리지 않고, 예를 들어 아래와 같은 필드를 두고 논리 삭제 처리합니다.
-    - `deletedAt` (nullable `LocalDateTime`)
-    - 또는 `isDeleted` (boolean)
-  - **조회 시에는 Soft Delete 된 데이터는 보이지 않도록 처리**해야 합니다.
-- **에러 응답 규칙 (예시)**
-  - Validation, 인증/인가, 비즈니스 에러 등은 아래와 같이 응답하는 것을 권장합니다.
+#### 인증 헤더
+- 인증이 필요한 API는 다음 헤더를 포함해야 합니다:
+  ```
+  Authorization: Bearer <access_token>
+  ```
+
+#### 에러 응답 규칙
+- Validation, 인증/인가, 비즈니스 에러 등은 아래와 같이 응답:
 
     ```json
     {
@@ -43,11 +80,48 @@
     }
     ```
 
-- **레이어드 아키텍처 권장**
-  - `controller` / `service` / `repository` / `domain` 등으로 패키지를 분리해서 구현해보세요.
+### Validation 규칙
 
-- **실행 방법 문서화**
-  - 이 프로젝트를 실행하기 위한 최소한의 설정과 명령어를 `README.md` 최하단에 간단히 정리해주세요.
+#### Bean Validation 사용
+- Request Body의 필드 검증은 **Jakarta Bean Validation**을 사용합니다.
+- 주요 어노테이션:
+  - `@NotBlank`: null, 빈 문자열, 공백만 있는 문자열 불가
+  - `@NotNull`: null 불가
+  - `@Email`: 이메일 형식 검증
+  - `@Size(min=, max=)`: 문자열 길이 제한
+  - `@Min(value)`: 숫자 최소값 제한
+  - `@Pattern(regexp=)`: 정규식 패턴 검증
+
+#### Validation 에러 응답
+- Validation 실패 시 자동으로 400 Bad Request 응답
+- 에러 메시지는 `@NotBlank(message=)` 등으로 커스터마이징 가능
+
+### Role 기반 접근 제어
+
+#### Role 정의
+- **`USER`**: 일반 사용자
+- **`ADMIN`**: 관리자
+
+#### Role별 권한 정책
+
+**USER 권한:**
+- 상품 등록 가능
+- 본인이 등록한 상품만 수정 가능
+- `APPROVED` 상태인 상품만 조회 가능
+- 본인 주문만 조회/생성 가능
+- 상품 승인 불가
+
+**ADMIN 권한:**
+- 모든 상품 조회/수정/삭제 가능
+- 모든 사용자의 주문 조회 가능
+- 상품 승인 가능 (`PENDING` → `APPROVED`)
+
+### Soft Delete 정책
+
+- 실제 DB 삭제(DELETE 쿼리)를 하지 않고, 논리 삭제 처리합니다.
+- 필드 예시:
+  - `deletedAt` (nullable `LocalDateTime`)
+- **조회 시에는 Soft Delete 된 데이터는 보이지 않도록 처리**해야 합니다.
 
 ---
 
@@ -57,188 +131,498 @@
 
 ### 1-1. 도메인 설계
 
-- **상품 (`Product`)**
-  - **필수 필드 예시**
+#### 상품 (`Product`) 엔티티
+- **필수 필드**
     - `id` (Long, PK)
-    - `status` (enum: `PENDING`, `APPROVED` — 기본값 `PENDING`, 관리자 승인 전까지는 `APPROVED` 가 될 수 없음)
-    - `name` (String, 필수, 길이 제한)
-    - `price` (Long 또는 Integer, 0 이상)
+  - `status` (enum: `PENDING`, `APPROVED` — 기본값 `PENDING`)
+  - `name` (String, 필수, 2~50자)
+  - `price` (Long, 0 이상)
     - `stock` (Integer, 0 이상)
     - `description` (String, 옵션)
-    - `createdAt`, `updatedAt`
-    - `deletedAt` 또는 `isDeleted` (Soft Delete 용)
+  - `user` (User, 상품 등록자 - ManyToOne 관계)
+  - `createdAt`, `updatedAt` (LocalDateTime)
+  - `deletedAt` (LocalDateTime, nullable, Soft Delete 용)
 
-- **회원 (`User`)**
-  - **필수 필드 예시**
+#### 회원 (`User`) 엔티티
+- **필수 필드**
     - `id` (Long, PK)
     - `email` (String, unique, 필수)
     - `password` (String, 필수, **암호화 저장 필수**)
-    - `name` (String)
-    - `role` (enum: `USER`, `ADMIN`)  → 2단계에서 사용
-    - `createdAt`, `updatedAt`
+  - `name` (String, 2~12자)
+  - `role` (enum: `USER`, `ADMIN`, 기본값 `USER`)
+  - `createdAt`, `updatedAt` (LocalDateTime)
 
-필드는 예시이며, 필요에 따라 자유롭게 확장해도 됩니다. 다만 **Soft Delete 필드와 Role 필드는 꼭 포함**해주세요.
+---
 
-### 1-2. 상품 관련 API 요구사항
+### 1-2. 인증/인가 API
 
-#### 상품 등록
-- **HTTP Method / Path**
-  - `POST /api/v1/products`
-- **요청 (JSON)**
-  - `name` (String, 2~50자, 필수)
-  - `price` (Number, 필수, 0 이상)
-  - `stock` (Number, 필수, 0 이상)
+#### 1-2-1. 회원 가입
+
+**HTTP Method / Path**
+```
+POST /api/v1/auth/signup
+```
+
+**인증**
+- 인증 불필요 (공개 API)
+
+**Request Body (JSON)**
+```json
+{
+  "email": "user@example.com",
+  "password": "Password123!",
+  "name": "홍길동"
+}
+```
+
+**Request Body Validation**
+- `email` (String, 필수)
+  - `@NotBlank`: 필수
+  - `@Email`: 이메일 형식 검증
+- `password` (String, 필수)
+  - `@NotBlank`: 필수
+  - `@Size(min=8, max=12)`: 8자 이상 12자 이하
+  - `@Pattern`: 특수문자, 숫자, 대문자 포함 필수
+- `name` (String, 필수)
+  - `@NotBlank`: 필수
+  - `@Size(min=2, max=12)`: 2자 이상 12자 이하
+
+**Response (200 OK)**
+```json
+{
+  "status": "SUCCESS",
+  "data": {
+    "id": 1,
+    "email": "user@example.com",
+    "name": "홍길동",
+    "role": "USER",
+    "createdAt": "2024-01-01T00:00:00",
+    "updatedAt": "2024-01-01T00:00:00"
+  }
+}
+```
+
+**Response 타입**: `Response<UserResponse>`
+
+**비즈니스 로직**
+- `email`은 unique해야 함 (중복 시 에러 응답)
+- 비밀번호는 **반드시 암호화**해서 저장 (BCrypt 권장)
+- 기본 `role`은 `USER`로 설정
+
+---
+
+#### 1-2-2. 로그인
+
+**HTTP Method / Path**
+```
+POST /api/v1/auth/login
+```
+
+**인증**
+- 인증 불필요 (공개 API)
+
+**Request Body (JSON)**
+```json
+{
+  "email": "user@example.com",
+  "password": "Password123!"
+}
+```
+
+**Request Body Validation**
+- `email` (String, 필수)
+  - `@NotBlank`: 필수
+  - `@Email`: 이메일 형식 검증
+- `password` (String, 필수)
+  - `@NotBlank`: 필수
+
+**Response (200 OK)**
+```json
+{
+  "status": "SUCCESS",
+  "data": {
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  }
+}
+```
+
+**Response 타입**: `Response<LoginResponse>`
+
+**비즈니스 로직**
+- `email`, `password`로 인증
+- 인증 성공 시 JWT Access Token 발급
+- 이후 인증이 필요한 API 호출 시 헤더에 포함:
+  ```
+  Authorization: Bearer <access_token>
+  ```
+
+---
+
+#### 1-2-3. 토큰 재발급 (Reissue)
+
+**HTTP Method / Path**
+```
+POST /api/v1/auth/reissue
+```
+
+**인증**
+- 인증 불필요 (공개 API)
+
+**Request Body (JSON)**
+```json
+{
+  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+**Request Body Validation**
+- `refreshToken` (String, 필수)
+  - `@NotBlank`: 필수 (또는 구현 시점에 검증)
+
+**Response (200 OK)**
+```json
+{
+  "status": "SUCCESS",
+  "data": {
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  }
+}
+```
+
+**Response 타입**: `Response<ReissueResponse>`
+
+**비즈니스 로직**
+- 유효한 Refresh Token을 받아 새로운 Access Token을 발급
+- Refresh Token 검증 후 유효하면 새로운 Access Token 반환
+- 유효하지 않은 Refresh Token이면 에러 응답
+
+**참고**: 3단계에서 Refresh Token 저장/관리 로직을 구현합니다.
+
+---
+
+#### 1-2-4. 자기 자신의 정보 조회
+
+**HTTP Method / Path**
+```
+GET /api/v1/users
+```
+
+**인증**
+- **인증 필수** (JWT 토큰 필요)
+- Role: `USER`, `ADMIN` 모두 접근 가능
+
+**Request Body**
+- 없음
+
+**Query Parameter**
+- 없음
+
+**Response (200 OK)**
+```json
+{
+  "status": "SUCCESS",
+  "data": {
+    "id": 1,
+    "email": "user@example.com",
+    "name": "홍길동",
+    "role": "USER",
+    "createdAt": "2024-01-01T00:00:00",
+    "updatedAt": "2024-01-01T00:00:00"
+  }
+}
+```
+
+**Response 타입**: `Response<UserResponse>`
+
+**비즈니스 로직**
+- JWT 토큰에서 사용자 정보를 추출하여 본인의 정보만 반환
+- 인증되지 않은 사용자는 401 Unauthorized 응답
+
+---
+
+### 1-3. 상품 API
+
+#### 1-3-1. 상품 등록
+
+**HTTP Method / Path**
+```
+POST /api/v1/products
+```
+
+**인증**
+- **인증 필수** (JWT 토큰 필요)
+- Role: `USER`, `ADMIN` 모두 등록 가능
+
+**Request Body (JSON)**
+```json
+{
+  "name": "노트북",
+  "price": 1000000,
+  "stock": 10,
+  "description": "고성능 노트북입니다."
+}
+```
+
+**Request Body Validation**
+- `name` (String, 필수)
+  - `@NotBlank`: 필수
+  - `@Size(min=2, max=50)`: 2자 이상 50자 이하
+- `price` (Long, 필수)
+  - `@NotNull`: 필수
+  - `@Min(0)`: 0 이상
+- `stock` (Integer, 필수)
+  - `@NotNull`: 필수
+  - `@Min(0)`: 0 이상
   - `description` (String, 옵션)
-- **인증**
-  - 인증된 사용자(USER, ADMIN) 모두 등록 가능
-- **응답**
-  - 타입: `Response<ProductResponse>`
-  - `ProductResponse`
-    - `id`
-    - `status` (등록 시점에는 항상 `PENDING`)
-    - `name`
-    - `price`
-    - `stock`
-    - `description`
-    - `createdAt`, `updatedAt`
-- **요구사항**
-  - Bean Validation 사용 (예: `@NotBlank`, `@Min`, `@Size` 등)
-  - 생성 직후 `status` 는 반드시 `PENDING`
-  - `APPROVED` 되기 전까지는 일반 사용자 상품 목록/단건 조회에 노출되지 않음
-  - 상품 등록 시 등록한 사용자 정보가 저장됨
-  - **한 사용자는 PENDING 상태인 상품이 하나 이상 있으면 새로운 상품을 등록할 수 없음** (기존 PENDING 상품이 승인되거나 취소되어야 새로운 상품 등록 가능)
+  - Validation 없음
 
-#### 상품 목록 조회 (페이지네이션 + 검색)
-- **HTTP Method / Path**
-  - `GET /api/v1/products`
-- **Query Parameter**
-  - `page` (Integer, 기본값 0) - 페이지 번호 (0부터 시작)
-  - `size` (Integer, 기본값 10) - 페이지당 항목 수
-  - `minPrice` (Long, 옵션) - 최소 가격 필터
-  - `maxPrice` (Long, 옵션) - 최대 가격 필터
-  - `name` (String, 옵션) - 상품명 부분 검색 (LIKE 검색)
-- **요청 예시**
+**Response (200 OK)**
+```json
+{
+  "status": "SUCCESS",
+  "data": {
+    "id": 1,
+    "status": "PENDING",
+    "name": "노트북",
+    "price": 1000000,
+    "stock": 10,
+    "description": "고성능 노트북입니다.",
+    "createdAt": "2024-01-01T00:00:00",
+    "updatedAt": "2024-01-01T00:00:00"
+  }
+}
+```
+
+**Response 타입**: `Response<ProductResponse>`
+
+**비즈니스 로직**
+- 생성 직후 `status`는 반드시 `PENDING`
+- 상품 등록 시 등록한 사용자 정보가 저장됨 (JWT 토큰에서 추출)
+- **한 사용자는 PENDING 상태인 상품이 하나 이상 있으면 새로운 상품을 등록할 수 없음**
+  - 기존 PENDING 상품이 승인되거나 취소되어야 새로운 상품 등록 가능
+  - `APPROVED` 되기 전까지는 일반 사용자 상품 목록/단건 조회에 노출되지 않음
+
+---
+
+#### 1-3-2. 상품 목록 조회 (페이지네이션 + 검색)
+
+**HTTP Method / Path**
+```
+GET /api/v1/products
+```
+
+**인증**
+- 인증 불필요 (공개 API)
+- 단, Role에 따라 조회 범위가 달라짐
+
+**Request Body**
+- 없음
+
+**Query Parameter**
+- `page` (Integer, 옵션, 기본값 0)
+  - 페이지 번호 (0부터 시작)
+- `size` (Integer, 옵션, 기본값 10)
+  - 페이지당 항목 수
+- `minPrice` (Long, 옵션)
+  - 최소 가격 필터
+- `maxPrice` (Long, 옵션)
+  - 최대 가격 필터
+- `name` (String, 옵션)
+  - 상품명 부분 검색 (LIKE 검색)
+
+**요청 예시**
   ```
   GET /api/v1/products?page=0&size=10&minPrice=1000&maxPrice=50000&name=노트북
   ```
-- **응답**
-  - 타입: `Response<ProductPageResponse>`
-  - `ProductPageResponse`
-    - `content`: `ProductSummary[]`
-    - `totalElements`: 전체 개수
-    - `totalPages`: 전체 페이지 수
-    - `page`: 현재 페이지
-    - `size`: 페이지 크기
-  - `ProductSummary`
-    - `id`
-    - `name`
-    - `price`
-    - `stock`
-    - `status`
-- **요구사항**
-  - Soft Delete 된 상품은 조회되면 안 됨
-  - 일반 사용자 조회 시 `status = APPROVED` 인 상품만 조회
+
+**Response (200 OK)**
+```json
+{
+  "status": "SUCCESS",
+  "data": {
+    "content": [
+      {
+        "id": 1,
+        "name": "노트북",
+        "price": 1000000,
+        "stock": 10,
+        "status": "APPROVED"
+      },
+      {
+        "id": 2,
+        "name": "마우스",
+        "price": 50000,
+        "stock": 20,
+        "status": "APPROVED"
+      }
+    ],
+    "totalElements": 2,
+    "totalPages": 1,
+    "page": 0,
+    "size": 10
+  }
+}
+```
+
+**Response 타입**: `Response<ProductPageResponse>`
+
+**비즈니스 로직**
+- Soft Delete 된 상품은 조회되지 않음
+- **일반 사용자(인증 없음 또는 USER Role) 조회 시**: `status = APPROVED` 인 상품만 조회
+- **ADMIN Role 조회 시**: 모든 상태의 상품 조회 가능 (PENDING 포함)
   - `minPrice`와 `maxPrice`를 함께 사용하면 가격 범위 검색 가능
   - `name` 파라미터는 부분 일치 검색 (대소문자 구분 없음 권장)
 
-#### 상품 단건 조회
-- **HTTP Method / Path**
-  - `GET /api/v1/products/{id}`
-- **응답**
-  - 타입: `Response<ProductDetailResponse>`
-  - `ProductDetailResponse`
-    - `id`, `status`, `name`, `price`, `stock`, `description`, `createdAt`, `updatedAt`
-- **요구사항**
+---
+
+#### 1-3-3. 상품 단건 조회
+
+**HTTP Method / Path**
+```
+GET /api/v1/products/{id}
+```
+
+**인증**
+- 인증 불필요 (공개 API)
+- 단, Role에 따라 조회 범위가 달라짐
+
+**Path Parameter**
+- `id` (Long, 필수)
+  - 상품 ID
+
+**Request Body**
+- 없음
+
+**Query Parameter**
+- 없음
+
+**Response (200 OK)**
+```json
+{
+  "status": "SUCCESS",
+  "data": {
+    "id": 1,
+    "status": "APPROVED",
+    "name": "노트북",
+    "price": 1000000,
+    "stock": 10,
+    "description": "고성능 노트북입니다.",
+    "createdAt": "2024-01-01T00:00:00",
+    "updatedAt": "2024-01-01T00:00:00"
+  }
+}
+```
+
+**Response 타입**: `Response<ProductDetailResponse>`
+
+**비즈니스 로직**
   - Soft Delete 된 상품은 조회 시 404 또는 적절한 에러 응답
-  - 일반 사용자는 `status = APPROVED` 인 상품만 조회 가능 (`ADMIN` 의 조회 범위는 2단계에서 정의)
+- **일반 사용자(인증 없음 또는 USER Role) 조회 시**: `status = APPROVED` 인 상품만 조회 가능
+- **ADMIN Role 조회 시**: 모든 상태의 상품 조회 가능 (PENDING 포함)
 
-#### 상품 수정
-- **HTTP Method / Path**
-  - `PUT /api/v1/products/{id}`
-- **요청 (JSON)**
-  - `name` (String, 2~50자, 필수)
-  - `price` (Number, 필수, 0 이상)
-  - `stock` (Number, 필수, 0 이상)
+---
+
+#### 1-3-4. 상품 수정
+
+**HTTP Method / Path**
+```
+PUT /api/v1/products/{id}
+```
+
+**인증**
+- **인증 필수** (JWT 토큰 필요)
+- Role: `USER` (본인 상품만), `ADMIN` (모든 상품)
+
+**Path Parameter**
+- `id` (Long, 필수)
+  - 상품 ID
+
+**Request Body (JSON)**
+```json
+{
+  "name": "노트북 (수정)",
+  "price": 1200000,
+  "stock": 15,
+  "description": "수정된 설명입니다."
+}
+```
+
+**Request Body Validation**
+- `name` (String, 필수)
+  - `@NotBlank`: 필수
+  - `@Size(min=2, max=50)`: 2자 이상 50자 이하
+- `price` (Long, 필수)
+  - `@NotNull`: 필수
+  - `@Min(0)`: 0 이상
+- `stock` (Integer, 필수)
+  - `@NotNull`: 필수
+  - `@Min(0)`: 0 이상
   - `description` (String, 옵션)
-- **인증**
-  - 인증된 사용자 중 **등록한 사용자만** 수정 가능
-  - ADMIN은 모든 상품 수정 가능
-- **응답**
-  - 타입: `Response<ProductResponse>`
-- **요구사항**
+  - Validation 없음
+
+**Response (200 OK)**
+```json
+{
+  "status": "SUCCESS",
+  "data": {
+    "id": 1,
+    "status": "PENDING",
+    "name": "노트북 (수정)",
+    "price": 1200000,
+    "stock": 15,
+    "description": "수정된 설명입니다.",
+    "createdAt": "2024-01-01T00:00:00",
+    "updatedAt": "2024-01-01T01:00:00"
+  }
+}
+```
+
+**Response 타입**: `Response<ProductResponse>`
+
+**비즈니스 로직**
   - 위 필드들을 업데이트할 수 있어야 함
-  - Validation 적용
   - Soft Delete 된 상품은 수정 불가 → 에러 응답
-  - 본인이 등록한 상품이 아니면 수정 불가 → 403 에러 응답
+- **USER Role**: 본인이 등록한 상품이 아니면 수정 불가 → 403 Forbidden 에러 응답
+- **ADMIN Role**: 모든 상품 수정 가능
 
-#### 상품 삭제 (Soft Delete)
-- **HTTP Method / Path**
-  - `DELETE /api/v1/products/{id}`
-- **응답**
-  - 타입: `Response<Void>` 또는 비어 있는 `data` 를 가진 `Response<Object>` 등 프로젝트에서 명확히 정의
-- **요구사항**
-  - 실제 삭제 대신 Soft Delete 필드(`deletedAt` 또는 `isDeleted`)를 변경
-  - 이후 목록/단건 조회에서 보이지 않아야 함
+---
 
-### 1-3. 회원 가입 / 로그인 / 인증
+#### 1-3-5. 상품 삭제 (Soft Delete)
 
-#### 회원 가입
-- **HTTP Method / Path**
-  - `POST /api/v1/auth/signup`
-- **요청 (JSON)**
-  - `email` (String, 이메일 형식, 필수)
-  - `password` (String, 8~12자, 특수문자/숫자/대문자 포함, 필수)
-  - `name` (String, 2~12자 필수)
-- **응답**
-  - 타입: `Response<UserResponse>`
-  - `UserResponse`
-    - `id`, `email`, `name`, `role`, `createdAt`, `updatedAt`
-- **요구사항**
-  - `email` 은 unique
-  - 비밀번호는 **반드시 암호화** 해서 저장
+**HTTP Method / Path**
+```
+DELETE /api/v1/products/{id}
+```
 
-#### 로그인
-- **HTTP Method / Path**
-  - `POST /api/v1/auth/login`
-- **요청 (JSON)**
-  - `email` (String, 이메일 형식, 필수)
-  - `password` (String, 필수)
-- **응답**
-  - 타입: `Response<LoginResponse>`
-  - `LoginResponse`
-    - `accessToken`
-    - (선택) `refreshToken` — 3단계에서 확장 가능
-- **요구사항**
-  - `email`, `password` 로 인증
-  - 성공 시 Access Token 발급
-  - 이후 인증이 필요한 API 호출 시 헤더 사용  
-    - `Authorization: Bearer <access_token>`
+**인증**
+- **인증 필수** (JWT 토큰 필요)
+- Role: `USER` (본인 상품만), `ADMIN` (모든 상품)
 
-#### 토큰 재발급 (Reissue)
-- **HTTP Method / Path**
-  - `POST /api/v1/auth/reissue`
-- **요청 (JSON)**
-  - `refreshToken` (String, 필수)
-- **응답**
-  - 타입: `Response<ReissueResponse>`
-  - `ReissueResponse`
-    - `accessToken`
-- **요구사항**
-  - 유효한 Refresh Token을 받아 새로운 Access Token을 발급
-  - Refresh Token 검증 후 유효하면 새로운 Access Token 반환
+**Path Parameter**
+- `id` (Long, 필수)
+  - 상품 ID
 
-#### 자기 자신의 정보 조회
-- **HTTP Method / Path**
-  - `GET /api/v1/users`
-- **인증**
-  - 인증된 사용자만 접근 가능
-- **응답**
-  - 타입: `Response<UserResponse>`
-  - `UserResponse`
-    - `id`, `email`, `name`, `role`, `createdAt`, `updatedAt`
-- **요구사항**
-  - 로그인한 사용자 본인의 정보만 조회 가능
-  - JWT 토큰에서 사용자 정보를 추출하여 반환
+**Request Body**
+- 없음
+
+**Query Parameter**
+- 없음
+
+**Response (200 OK)**
+```json
+{
+  "status": "SUCCESS",
+  "data": null
+}
+```
+
+**Response 타입**: `Response<Void>`
+
+**비즈니스 로직**
+- 실제 삭제 대신 Soft Delete 필드(`deletedAt` 또는 `isDeleted`)를 변경
+- 이후 목록/단건 조회에서 보이지 않아야 함
+- **USER Role**: 본인이 등록한 상품이 아니면 삭제 불가 → 403 Forbidden 에러 응답
+- **ADMIN Role**: 모든 상품 삭제 가능
 
 ---
 
@@ -246,105 +630,420 @@
 
 2단계의 목표는 **Role 기반 권한 제어, 자기 데이터만 조회하기, enum 기반 상태 머신**을 경험하는 것입니다.
 
-### 2-1. Role 기반 접근 제어
+### 2-1. 주문 도메인 설계
 
-- **Role 정의**
-  - `USER`: 일반 사용자
-  - `ADMIN`: 관리자
+#### 주문 (`Order`) 엔티티
+- **필수 필드**
+  - `id` (Long, PK)
+  - `user` (User, 주문한 사용자 - ManyToOne 관계)
+  - `status` (enum: `CREATED`, `PAID`, `CANCELLED`, `COMPLETED`)
+  - `totalPrice` (Long, 주문 총액)
+  - `orderItems` (List<OrderItem>, OneToMany 관계)
+  - `createdAt`, `updatedAt` (LocalDateTime)
 
-- **접근 제어 정책 예시**
-  - **`ADMIN`**
-    - 상품 생성 / 수정(모든 상품) / 삭제 / 승인 가능
-  - **`USER`**
-    - 상품 등록 가능
-    - 본인이 등록한 상품만 수정 가능
-    - 승인 완료(`APPROVED`) 상품 조회만 가능 (삭제/승인 불가)
+#### 주문상품 (`OrderItem`) 엔티티
+- **필수 필드**
+  - `id` (Long, PK)
+  - `order` (Order, ManyToOne 관계)
+  - `product` (Product, ManyToOne 관계)
+  - `price` (Long, 주문 시점의 상품 가격 스냅샷)
+  - `quantity` (Integer, 주문 수량)
 
-### 2-2. 주문 도메인 설계
+### 2-2. 주문 상태 머신
 
-- **주문 (`Order`)**
-  - **필드 예시**
-    - `id`
-    - `user` (주문한 사용자)
-    - `status` (enum: `CREATED`, `PAID`, `CANCELLED`, `COMPLETED` 등)
-    - `totalPrice`
-    - `createdAt`, `updatedAt`
-
-- **주문상품 (`OrderItem`)**
-  - **필드 예시**
-    - `id`
-    - `order` (Order)
-    - `product` (Product)
-    - `price` (주문 시점의 상품 가격 스냅샷)
-    - `quantity`
-
-### 2-3. 간단한 enum 기반 상태 머신
-
-- **상태 전이 규칙 예시**
+#### 상태 전이 규칙
   - `CREATED` → `PAID` → `COMPLETED`
   - `CREATED` → `CANCELLED`
-  - 이미 `CANCELLED` 또는 `COMPLETED` 된 주문은 더 이상 상태 변경 불가.
+- 이미 `CANCELLED` 또는 `COMPLETED` 된 주문은 더 이상 상태 변경 불가
 
-- **상태 변경 API 예시**
-  - `PATCH /api/v1/orders/{id}/pay` → `CREATED` → `PAID`
-  - `PATCH /api/v1/orders/{id}/cancel` → `CREATED` → `CANCELLED`
-  - `PATCH /api/v1/orders/{id}/complete` → `PAID` → `COMPLETED`
+#### 상태별 설명
+- **`CREATED`**: 주문 생성 완료 (결제 대기)
+- **`PAID`**: 결제 완료 (배송 대기)
+- **`CANCELLED`**: 주문 취소됨
+- **`COMPLETED`**: 주문 완료 (배송 완료)
 
-- **요구사항**
-  - 잘못된 상태 전이 시 공통 에러 Response 구조로 응답해야 합니다.
-    - 예: `status: "ERROR"`, `data: { "code": "INVALID_ORDER_STATUS", "message": "이미 완료된 주문입니다." }`
+---
 
-### 2-4. 주문 관련 API
+### 2-3. 주문 API
 
-- **주문 생성**
-  - **HTTP Method / Path**
-    - `POST /api/v1/orders`
-  - **요청 예시**
+#### 2-3-1. 주문 생성
 
+**HTTP Method / Path**
+```
+POST /api/v1/orders
+```
+
+**인증**
+- **인증 필수** (JWT 토큰 필요)
+- Role: `USER`, `ADMIN` 모두 주문 생성 가능
+
+**Request Body (JSON)**
     ```json
     {
       "items": [
-        { "productId": 1, "quantity": 2 },
-        { "productId": 3, "quantity": 1 }
+    {
+      "productId": 1,
+      "quantity": 2
+    },
+    {
+      "productId": 3,
+      "quantity": 1
+    }
       ]
     }
     ```
 
-  - **요구사항**
-    - 로그인한 사용자 기준으로 주문을 생성한다.
-    - 각 상품의 재고를 검증한다. (재고 부족 시 에러 응답)
-    - 주문 생성 시 재고를 차감한다. (동시성 문제는 3단계에서 다룹니다.)
+**Request Body Validation**
+- `items` (List<OrderItemRequest>, 필수)
+  - `@NotEmpty`: 최소 1개 이상의 주문 항목 필요
+- `items[].productId` (Long, 필수)
+  - `@NotNull`: 필수
+- `items[].quantity` (Integer, 필수)
+  - `@NotNull`: 필수
+  - `@Min(1)`: 1 이상
 
-- **내 주문 목록 조회**
-  - **HTTP Method / Path**
-    - `GET /api/v1/orders/my`
-  - **요구사항**
-    - 로그인한 사용자의 주문만 조회한다.
-    - 페이지네이션 및 상태 필터(optional: `status=CREATED` 등)를 지원하면 좋습니다.
+**Response (200 OK)**
+```json
+{
+  "status": "SUCCESS",
+  "data": {
+    "id": 1,
+    "userId": 1,
+    "status": "CREATED",
+    "totalPrice": 2050000,
+    "createdAt": "2024-01-01T00:00:00",
+    "updatedAt": "2024-01-01T00:00:00"
+  }
+}
+```
 
-- **주문 상세 조회**
-  - **HTTP Method / Path**
-    - `GET /api/v1/orders/{id}`
-  - **요구사항**
-    - 일반 사용자는 **본인 주문만** 조회할 수 있다.
-    - `ADMIN`은 모든 사용자의 주문을 조회할 수 있다.
+**Response 타입**: `Response<OrderResponse>`
 
-### 2-5. 상품 승인 API
+**비즈니스 로직**
+- 로그인한 사용자 기준으로 주문을 생성 (JWT 토큰에서 사용자 정보 추출)
+- 각 상품의 재고를 검증 (재고 부족 시 에러 응답)
+- 주문 생성 시 재고를 차감 (동시성 문제는 3단계에서 다룹니다)
+- 주문 시점의 상품 가격을 `OrderItem.price`에 스냅샷으로 저장
+- 주문 총액(`totalPrice`) 계산: 각 `OrderItem.price * quantity`의 합
+- 주문 생성 시 `status`는 `CREATED`로 설정
+- Soft Delete 된 상품은 주문 불가 → 에러 응답
+- `APPROVED` 상태가 아닌 상품은 주문 불가 → 에러 응답
 
-#### 상품 승인
-- **HTTP Method / Path**
-  - `PATCH /api/v1/products/{id}/approve`
-- **요청**
-  - (선택) 승인 사유 등 부가 정보 — 필드는 자유롭게 설계
-- **응답**
-  - 타입: `Response<ProductResponse>`
-  - `ProductResponse`
-    - `id`, `status`, `name`, `price`, `stock`, `description`, `createdAt`, `updatedAt`
-- **요구사항**
-  - `status = PENDING` 인 상품만 승인 가능 (그 외 상태에서 호출 시 에러)
+---
+
+#### 2-3-2. 내 주문 목록 조회
+
+**HTTP Method / Path**
+```
+GET /api/v1/orders/my
+```
+
+**인증**
+- **인증 필수** (JWT 토큰 필요)
+- Role: `USER`, `ADMIN` 모두 접근 가능
+
+**Request Body**
+- 없음
+
+**Query Parameter**
+- `page` (Integer, 옵션, 기본값 0)
+  - 페이지 번호 (0부터 시작)
+- `size` (Integer, 옵션, 기본값 10)
+  - 페이지당 항목 수
+- `status` (String, 옵션)
+  - 주문 상태 필터 (`CREATED`, `PAID`, `CANCELLED`, `COMPLETED`)
+
+**요청 예시**
+```
+GET /api/v1/orders/my?page=0&size=10&status=CREATED
+```
+
+**Response (200 OK)**
+```json
+{
+  "status": "SUCCESS",
+  "data": {
+    "content": [
+      {
+        "id": 1,
+        "userId": 1,
+        "status": "CREATED",
+        "totalPrice": 2050000,
+        "createdAt": "2024-01-01T00:00:00",
+        "updatedAt": "2024-01-01T00:00:00"
+      }
+    ],
+    "totalElements": 1,
+    "totalPages": 1,
+    "page": 0,
+    "size": 10
+  }
+}
+```
+
+**Response 타입**: `Response<Page<OrderResponse>>` (Spring Data의 Page 객체 사용)
+
+**비즈니스 로직**
+- 로그인한 사용자의 주문만 조회 (JWT 토큰에서 사용자 정보 추출)
+- `status` 파라미터가 있으면 해당 상태의 주문만 필터링
+- 페이지네이션 지원
+
+---
+
+#### 2-3-3. 주문 상세 조회
+
+**HTTP Method / Path**
+```
+GET /api/v1/orders/{id}
+```
+
+**인증**
+- **인증 필수** (JWT 토큰 필요)
+- Role: `USER` (본인 주문만), `ADMIN` (모든 주문)
+
+**Path Parameter**
+- `id` (Long, 필수)
+  - 주문 ID
+
+**Request Body**
+- 없음
+
+**Query Parameter**
+- 없음
+
+**Response (200 OK)**
+```json
+{
+  "status": "SUCCESS",
+  "data": {
+    "id": 1,
+    "userId": 1,
+    "status": "CREATED",
+    "totalPrice": 2050000,
+    "items": [
+      {
+        "id": 1,
+        "productId": 1,
+        "productName": "노트북",
+        "price": 1000000,
+        "quantity": 2
+      },
+      {
+        "id": 2,
+        "productId": 3,
+        "productName": "마우스",
+        "price": 50000,
+        "quantity": 1
+      }
+    ],
+    "createdAt": "2024-01-01T00:00:00",
+    "updatedAt": "2024-01-01T00:00:00"
+  }
+}
+```
+
+**Response 타입**: `Response<OrderDetailResponse>`
+
+**비즈니스 로직**
+- **USER Role**: 본인 주문만 조회 가능 (본인 주문이 아니면 403 Forbidden 에러 응답)
+- **ADMIN Role**: 모든 사용자의 주문을 조회 가능
+- 주문 상세 정보와 함께 주문 항목(`items`) 목록도 포함
+
+---
+
+#### 2-3-4. 주문 결제
+
+**HTTP Method / Path**
+```
+PATCH /api/v1/orders/{id}/pay
+```
+
+**인증**
+- **인증 필수** (JWT 토큰 필요)
+- Role: `USER` (본인 주문만), `ADMIN` (모든 주문)
+
+**Path Parameter**
+- `id` (Long, 필수)
+  - 주문 ID
+
+**Request Body**
+- 없음
+
+**Query Parameter**
+- 없음
+
+**Response (200 OK)**
+```json
+{
+  "status": "SUCCESS",
+  "data": {
+    "id": 1,
+    "userId": 1,
+    "status": "PAID",
+    "totalPrice": 2050000,
+    "createdAt": "2024-01-01T00:00:00",
+    "updatedAt": "2024-01-01T01:00:00"
+  }
+}
+```
+
+**Response 타입**: `Response<OrderResponse>`
+
+**비즈니스 로직**
+- 상태 전이: `CREATED` → `PAID`
+- **USER Role**: 본인 주문만 결제 가능 (본인 주문이 아니면 403 Forbidden 에러 응답)
+- **ADMIN Role**: 모든 주문 결제 가능
+- 잘못된 상태 전이 시 에러 응답:
+  - 현재 상태가 `CREATED`가 아니면 → `status: "ERROR"`, `data: { "code": "INVALID_ORDER_STATUS", "message": "결제할 수 없는 주문 상태입니다." }`
+- 이미 `CANCELLED` 또는 `COMPLETED` 된 주문은 결제 불가
+
+---
+
+#### 2-3-5. 주문 취소
+
+**HTTP Method / Path**
+```
+PATCH /api/v1/orders/{id}/cancel
+```
+
+**인증**
+- **인증 필수** (JWT 토큰 필요)
+- Role: `USER` (본인 주문만), `ADMIN` (모든 주문)
+
+**Path Parameter**
+- `id` (Long, 필수)
+  - 주문 ID
+
+**Request Body**
+- 없음
+
+**Query Parameter**
+- 없음
+
+**Response (200 OK)**
+```json
+{
+  "status": "SUCCESS",
+  "data": {
+    "id": 1,
+    "userId": 1,
+    "status": "CANCELLED",
+    "totalPrice": 2050000,
+    "createdAt": "2024-01-01T00:00:00",
+    "updatedAt": "2024-01-01T01:00:00"
+  }
+}
+```
+
+**Response 타입**: `Response<OrderResponse>`
+
+**비즈니스 로직**
+- 상태 전이: `CREATED` → `CANCELLED`
+- **USER Role**: 본인 주문만 취소 가능 (본인 주문이 아니면 403 Forbidden 에러 응답)
+- **ADMIN Role**: 모든 주문 취소 가능
+- 잘못된 상태 전이 시 에러 응답:
+  - 현재 상태가 `CREATED`가 아니면 → `status: "ERROR"`, `data: { "code": "INVALID_ORDER_STATUS", "message": "취소할 수 없는 주문 상태입니다." }`
+- 주문 취소 시 재고를 복구해야 함
+- 이미 `CANCELLED` 또는 `COMPLETED` 된 주문은 취소 불가
+
+---
+
+#### 2-3-6. 주문 완료
+
+**HTTP Method / Path**
+```
+PATCH /api/v1/orders/{id}/complete
+```
+
+**인증**
+- **인증 필수** (JWT 토큰 필요)
+- Role: `ADMIN`만 접근 가능 (일반 사용자는 접근 불가)
+
+**Path Parameter**
+- `id` (Long, 필수)
+  - 주문 ID
+
+**Request Body**
+- 없음
+
+**Query Parameter**
+- 없음
+
+**Response (200 OK)**
+```json
+{
+  "status": "SUCCESS",
+  "data": {
+    "id": 1,
+    "userId": 1,
+    "status": "COMPLETED",
+    "totalPrice": 2050000,
+    "createdAt": "2024-01-01T00:00:00",
+    "updatedAt": "2024-01-01T02:00:00"
+  }
+}
+```
+
+**Response 타입**: `Response<OrderResponse>`
+
+**비즈니스 로직**
+- 상태 전이: `PAID` → `COMPLETED`
+- **ADMIN Role만 접근 가능** (USER Role은 403 Forbidden 에러 응답)
+- 잘못된 상태 전이 시 에러 응답:
+  - 현재 상태가 `PAID`가 아니면 → `status: "ERROR"`, `data: { "code": "INVALID_ORDER_STATUS", "message": "완료할 수 없는 주문 상태입니다." }`
+- 이미 `CANCELLED` 또는 `COMPLETED` 된 주문은 완료 불가
+
+---
+
+### 2-4. 상품 승인 API
+
+#### 2-4-1. 상품 승인
+
+**HTTP Method / Path**
+```
+PATCH /api/v1/products/{id}/approve
+```
+
+**인증**
+- **인증 필수** (JWT 토큰 필요)
+- Role: **`ADMIN`만 접근 가능** (USER Role은 403 Forbidden 에러 응답)
+
+**Path Parameter**
+- `id` (Long, 필수)
+  - 상품 ID
+
+**Request Body**
+- 없음 (또는 선택적으로 승인 사유 등 부가 정보 추가 가능)
+
+**Query Parameter**
+- 없음
+
+**Response (200 OK)**
+```json
+{
+  "status": "SUCCESS",
+  "data": {
+    "id": 1,
+    "status": "APPROVED",
+    "name": "노트북",
+    "price": 1000000,
+    "stock": 10,
+    "description": "고성능 노트북입니다.",
+    "createdAt": "2024-01-01T00:00:00",
+    "updatedAt": "2024-01-01T01:00:00"
+  }
+}
+```
+
+**Response 타입**: `Response<ProductResponse>`
+
+**비즈니스 로직**
+- `status = PENDING` 인 상품만 승인 가능
   - 승인 성공 시 `status = APPROVED` 로 변경
   - 승인 이후부터 일반 사용자 상품 목록/단건 조회에 노출
-  - 이 API는 `ADMIN` Role 에서만 호출 가능
+- 잘못된 상태에서 호출 시 에러 응답:
+  - 현재 상태가 `PENDING`이 아니면 → `status: "ERROR"`, `data: { "code": "INVALID_PRODUCT_STATUS", "message": "승인할 수 없는 상품 상태입니다." }`
+- Soft Delete 된 상품은 승인 불가 → 에러 응답
 
 ---
 
@@ -353,62 +1052,240 @@
 3단계는 **시간/실력에 따라 선택적으로 구현**해도 됩니다.  
 다만, **동시성 관련 내용은 꼭 한 번 경험**해보는 것을 추천합니다.
 
-### 3-1. Refresh Token (선택)
+---
 
-- **목표**
-  - Access Token의 만료 시간을 짧게 설정한다.
-  - Refresh Token으로 Access Token을 재발급하는 전체 흐름을 스스로 설계하고 구현해본다.
+### 3-1. Refresh Token 구현
 
-- **기본 요구사항**
-  - `POST /api/v1/auth/refresh` 엔드포인트를 하나 정의한다.
-    - 유효한 Refresh Token을 보내면 새로운 Access Token을 발급한다.
-  - Refresh Token을 어디에, 어떤 형식으로 저장/관리할지는 직접 설계한다.
-  - 로그아웃 시 Refresh Token을 어떻게 무효화할지에 대한 정책을 정하고 구현한다.
+#### 3-1-1. Refresh Token 저장 및 관리
 
-### 3-2. 동시성 문제 / Race Condition 해결 (선택)
+**목표**
+- Access Token의 만료 시간을 짧게 설정 (예: 30분)
+- Refresh Token으로 Access Token을 재발급하는 전체 흐름 구현
 
-- **시나리오 1: 재고 차감 동시성**
-  - 재고가 1개 남은 인기 상품에 두 명 이상이 동시에 주문을 넣었을 때,
-  - 재고가 0 아래로 내려가거나, 실제 재고보다 많이 팔리는 문제가 발생하지 않도록 해야 한다.
+**구현 요구사항**
 
-- **시나리오 2: 상품 등록/승인 동시성**
-  - 동일한 비즈니스 키(예: 상품명 등)에 대해 여러 클라이언트가 동시에 상품 등록 요청을 보내는 상황을 가정한다.
-  - 관리자 승인 흐름(상품 상태 `PENDING` → `APPROVED`)과 함께 고려했을 때,
-    - 중복 상품이 과도하게 생성되거나,
-    - 승인되지 말아야 할 상품이 노출되는 등의 문제가 발생하지 않도록 해야 한다.
-  - 여러 개의 상품 등록 요청과 승인 API (`PATCH /api/v1/products/{id}/approve`) 호출이 섞여 들어오는 상황을 테스트해본다.
+1. **Refresh Token 저장 방식 선택**
+   - Redis에 저장 (권장)
+   - 또는 데이터베이스에 저장
+   - 또는 JWT 자체에 포함 (stateless)
 
-- **필수 요구**
-  - 위 두 시나리오 모두에 대해, 동시성 문제가 발생하는 상황을 재현할 수 있는 간단한 테스트 코드나 설명을 남긴다.
-  - 각 시나리오에서 동시성 문제를 어떻게 해결할지 스스로 조사하여 하나 이상 선택하고 적용한다.
-  - 해결 전/후에 대해 `README` 에 간단히 설명을 남긴다.
+2. **로그인 시 Refresh Token 발급**
+   - `POST /api/v1/auth/login` 응답에 `refreshToken` 추가
+   - Refresh Token 만료 시간은 Access Token보다 길게 설정 (예: 7일, 30일)
+
+3. **토큰 재발급 API**
+   - `POST /api/v1/auth/reissue` (1단계에서 껍데기 생성됨)
+   - 유효한 Refresh Token을 받아 새로운 Access Token 발급
+   - Refresh Token 검증 후 유효하면 새로운 Access Token 반환
+
+4. **로그아웃 시 Refresh Token 무효화**
+   - `POST /api/v1/auth/logout` 엔드포인트 구현 (선택)
+   - Refresh Token을 삭제하거나 블랙리스트에 추가
+
+**로그인 Response 수정 예시**
+```json
+{
+  "status": "SUCCESS",
+  "data": {
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  }
+}
+```
+
+---
+
+### 3-2. 동시성 문제 / Race Condition 해결
+
+#### 3-2-1. 재고 차감 동시성 문제
+
+**문제 시나리오**
+- 재고가 1개 남은 인기 상품에 두 명 이상이 동시에 주문을 넣었을 때
+- 재고가 0 아래로 내려가거나, 실제 재고보다 많이 팔리는 문제 발생
+
+**해결 방법 선택**
+다음 중 하나 이상을 선택하여 구현:
+
+1. **비관적 락 (Pessimistic Lock)**
+   - `@Lock(LockModeType.PESSIMISTIC_WRITE)` 사용
+   - 트랜잭션 종료 시까지 해당 레코드에 락을 걸어 다른 트랜잭션의 접근 차단
+
+2. **낙관적 락 (Optimistic Lock)**
+   - `@Version` 필드 사용
+   - 버전 충돌 시 예외 발생하여 재시도 로직 구현
+
+3. **Redis 분산 락**
+   - Redis를 이용한 분산 락 구현
+   - Redisson 라이브러리 사용 권장
+
+4. **데이터베이스 레벨 제약 조건**
+   - `CHECK (stock >= 0)` 제약 조건 추가
+   - 재고 부족 시 예외 처리
+
+**구현 위치**
+- `POST /api/v1/orders` (주문 생성) API에서 재고 차감 시 적용
+
+**테스트 요구사항**
+- 동시성 문제가 발생하는 상황을 재현할 수 있는 테스트 코드 작성
+- 해결 전/후의 차이를 보여주는 테스트
+
+---
+
+#### 3-2-2. 상품 등록/승인 동시성 문제
+
+**문제 시나리오**
+- 동일한 비즈니스 키(예: 상품명 등)에 대해 여러 클라이언트가 동시에 상품 등록 요청
+- 관리자 승인 흐름(상품 상태 `PENDING` → `APPROVED`)과 함께 고려했을 때:
+  - 중복 상품이 과도하게 생성되거나
+  - 승인되지 말아야 할 상품이 노출되는 등의 문제 발생
+
+**해결 방법 선택**
+다음 중 하나 이상을 선택하여 구현:
+
+1. **데이터베이스 Unique 제약 조건**
+   - 상품명에 Unique 제약 조건 추가
+   - 중복 등록 시 예외 처리
+
+2. **비관적 락**
+   - 상품 등록 시 락을 걸어 동시 등록 방지
+
+3. **Redis 분산 락**
+   - Redis를 이용한 분산 락으로 중복 등록 방지
+
+**구현 위치**
+- `POST /api/v1/products` (상품 등록) API
+- `PATCH /api/v1/products/{id}/approve` (상품 승인) API
+
+**테스트 요구사항**
+- 여러 개의 상품 등록 요청과 승인 API 호출이 섞여 들어오는 상황을 테스트
+- 해결 전/후의 차이를 보여주는 테스트
+
+**README 문서화**
+- 해결 전/후에 대해 `README` 에 간단히 설명을 남기기
+
+---
 
 ### 3-3. Multipart 파일 업로드 - 상품 이미지 (선택)
 
-- **목표**
-  - Spring의 `MultipartFile`을 사용하여 이미지 파일을 업로드하고 관리하는 기능을 구현해본다.
-  - 파일 저장 방식(로컬 파일 시스템, 클라우드 스토리지 등)을 선택하고 구현한다.
+#### 3-3-1. 상품 이미지 업로드
 
-- **기본 요구사항**
-  - `POST /api/v1/products/{id}/images` 엔드포인트를 정의한다.
-    - `multipart/form-data` 형식으로 이미지 파일을 받는다.
-    - 한 번에 여러 이미지를 업로드할 수 있도록 한다.
-  - 업로드된 이미지 파일의 저장 위치를 결정한다.
+**HTTP Method / Path**
+```
+POST /api/v1/products/{id}/images
+```
+
+**인증**
+- **인증 필수** (JWT 토큰 필요)
+- Role: `USER` (본인 상품만), `ADMIN` (모든 상품)
+
+**Path Parameter**
+- `id` (Long, 필수)
+  - 상품 ID
+
+**Request Body (multipart/form-data)**
+- `images` (MultipartFile[], 필수)
+  - 여러 이미지 파일 업로드 가능
+
+**Request Body Validation**
+- `images` (MultipartFile[], 필수)
+  - 최소 1개 이상의 파일 필요
+  - 파일 형식: jpg, png, gif 등 (구현 시 검증)
+  - 파일 크기: 최대 5MB (구현 시 검증)
+
+**Response (200 OK)**
+```json
+{
+  "status": "SUCCESS",
+  "data": {
+    "imageUrls": [
+      "https://example.com/images/product-1-image-1.jpg",
+      "https://example.com/images/product-1-image-2.jpg"
+    ]
+  }
+}
+```
+
+**비즈니스 로직**
+- 한 번에 여러 이미지를 업로드할 수 있도록 구현
+- 업로드된 이미지 파일의 저장 위치 결정:
     - 로컬 파일 시스템에 저장하거나
     - 클라우드 스토리지(AWS S3, Azure Blob Storage 등)에 저장
-  - 상품 엔티티에 이미지 URL 필드를 추가한다.
-    - 예: `imageUrls` (List<String>) 또는 `mainImageUrl` (String)
-  - 이미지 파일 검증을 구현한다.
+- 상품 엔티티에 이미지 URL 필드 추가:
+  - `imageUrls` (List<String>) 또는 `mainImageUrl` (String)
+- 이미지 파일 검증:
     - 파일 형식 검증 (jpg, png, gif 등)
     - 파일 크기 제한 (예: 최대 5MB)
-  - 이미지 삭제 기능도 구현한다.
-    - `DELETE /api/v1/products/{id}/images/{imageId}` 또는 유사한 엔드포인트
-  - 상품 조회 시 이미지 URL이 포함되어야 한다.
+- 파일명 중복 방지 (UUID 사용 등)
+- **USER Role**: 본인 상품만 이미지 업로드 가능
+- **ADMIN Role**: 모든 상품에 이미지 업로드 가능
 
-- **추가 고려사항**
+---
+
+#### 3-3-2. 상품 이미지 삭제
+
+**HTTP Method / Path**
+```
+DELETE /api/v1/products/{id}/images/{imageId}
+```
+
+**인증**
+- **인증 필수** (JWT 토큰 필요)
+- Role: `USER` (본인 상품만), `ADMIN` (모든 상품)
+
+**Path Parameter**
+- `id` (Long, 필수)
+  - 상품 ID
+- `imageId` (Long, 필수)
+  - 이미지 ID
+
+**Request Body**
+- 없음
+
+**Response (200 OK)**
+```json
+{
+  "status": "SUCCESS",
+  "data": null
+}
+```
+
+**비즈니스 로직**
+- 이미지 파일과 DB 레코드 모두 삭제
+- **USER Role**: 본인 상품만 이미지 삭제 가능
+- **ADMIN Role**: 모든 상품의 이미지 삭제 가능
+
+---
+
+#### 3-3-3. 상품 조회 시 이미지 URL 포함
+
+**수정 필요 API**
+- `GET /api/v1/products/{id}` (상품 단건 조회)
+- `GET /api/v1/products` (상품 목록 조회)
+
+**Response 수정 예시**
+```json
+{
+  "status": "SUCCESS",
+  "data": {
+    "id": 1,
+    "status": "APPROVED",
+    "name": "노트북",
+    "price": 1000000,
+    "stock": 10,
+    "description": "고성능 노트북입니다.",
+    "imageUrls": [
+      "https://example.com/images/product-1-image-1.jpg",
+      "https://example.com/images/product-1-image-2.jpg"
+    ],
+    "createdAt": "2024-01-01T00:00:00",
+    "updatedAt": "2024-01-01T00:00:00"
+  }
+}
+```
+
+**추가 고려사항**
   - 이미지 리사이징/썸네일 생성
   - 이미지 최적화
-  - 파일명 중복 방지 (UUID 사용 등)
 
 ---
 
@@ -470,7 +1347,3 @@ java -jar build/libs/shopping-mall-0.0.1-SNAPSHOT.jar
 ### 4. 데이터베이스 초기화
 
 JPA의 `ddl-auto=update` 설정으로 자동으로 테이블이 생성됩니다.
-
-
-
-
