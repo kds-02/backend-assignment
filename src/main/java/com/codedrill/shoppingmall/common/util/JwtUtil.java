@@ -31,14 +31,36 @@ public class JwtUtil {
 
     public String generateAccessToken(Long userId, String email, String name, String role) {
         //TODO: accessToken 생성 로직 구현
+        Date now = new Date();
+        Date expiration = new Date(now.getTime() + AC_EXPIRATION_IN_MS);
 
-        return null;
+        return Jwts.builder()
+                // 토큰 주체: 사용자 식별자
+                .subject(String.valueOf(userId))
+
+                // AccessToken에 담을 정보
+                .claim("email", email)
+                .claim("name", name)
+                .claim("role", role)
+
+                // 발급 시간 / 만료 시간
+                .issuedAt(now)
+                .expiration(expiration)
+
+                // 서명
+                .signWith(getSigningKey())
+
+                // JWT 문자열 생성
+                .compact();
     }
 
     public String generateRefreshToken(Long userId) {
         //TODO: refreshToken 생성 로직 구현
-
-        return null;
+        Date now = new Date();
+        Date expiration = new Date(now.getTime() + RF_EXPIRATION_IN_MS);
+        return Jwts.builder()
+                .subject(String.valueOf(userId))
+                .issuedAt(now).expiration(expiration).signWith(getSigningKey()).compact();
     }
 
     public Claims extractClaims(String token) {
