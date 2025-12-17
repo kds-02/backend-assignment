@@ -16,7 +16,9 @@ public enum ErrorCode {
     // 인증/인가
     UNAUTHORIZED("UNAUTHORIZED", "인증이 필요합니다."),
     FORBIDDEN("FORBIDDEN", "권한이 없습니다."),
-    INVALID_CREDENTIALS("INVALID_CREDENTIALS", "이메일 또는 비밀번호가 올바르지 않습니다.");
+    INVALID_CREDENTIALS("INVALID_CREDENTIALS", "이메일 또는 비밀번호가 올바르지 않습니다."),
+    DUPLICATE_EMAIL("DUPLICATE_EMAIL", "이미 존재하는 이메일입니다.");
+
 
     private final String code;
     private final String message;

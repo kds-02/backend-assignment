@@ -28,23 +28,25 @@ public class AuthController {
     public Response<UserResponse> signup(@Valid @RequestBody SignupRequest request) {
         //TODO: 회원가입 구현
 
-        return Response.success();
+        UserResponse userResponse = userService.signup(request);
+
+        return Response.success(userResponse);
     }
 
     @PostMapping("/login")
     @Operation(summary = "로그인")
     public Response<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         //TODO: 로그인 구현
-
-        return Response.success();
+        LoginResponse loginResponse = userService.login(request);
+        return Response.success(loginResponse);
     }
 
     @PostMapping("/reissue")
     @Operation(summary = "토큰 재발급")
     public Response<ReissueResponse> reissue(@Valid @RequestBody ReissueRequest request) {
         //TODO: 토큰 재발급 구현
-
-        return Response.success();
+        ReissueResponse reissueResponse = userService.reissue(request);
+        return Response.success(reissueResponse);
     }
 }
 
