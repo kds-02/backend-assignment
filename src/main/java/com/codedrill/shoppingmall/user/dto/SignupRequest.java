@@ -11,10 +11,18 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class SignupRequest {
 
+    @NotBlank
+    @Email
     private String email;
 
+
+    @NotBlank
+    @Size(min = 8, max = 64)
+    @Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\\d)(?=.*[!@#$%^&*()_+\\-={}\\[\\]:;\"'<>,.?/\\\\|]).+$")
     private String password;
 
+    @NotBlank
+    @Size(min = 2, max = 20)
     private String name;
 }
 
