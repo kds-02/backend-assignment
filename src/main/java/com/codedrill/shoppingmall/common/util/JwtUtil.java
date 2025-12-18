@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
@@ -58,8 +59,13 @@ public class JwtUtil {
         //TODO: refreshToken 생성 로직 구현
         Date now = new Date();
         Date expiration = new Date(now.getTime() + RF_EXPIRATION_IN_MS);
+
+        // refresh token은 "재발급 권한"이라서 식별자(jti)를 반드시 둔다
+        String refreshTokenId = UUID.randomUUID().toString();
+
         return Jwts.builder()
-                .subject(String.valueOf(userId))
+                .subject(String.valueOf(userId))   // 어떤 유저의 재발급 권한인지
+                .id(refreshTokenId)                // 재발급 권한의 고유 식별자 (rotation/폐기용)
                 .issuedAt(now)
                 .expiration(expiration)
                 .signWith(getSigningKey())
