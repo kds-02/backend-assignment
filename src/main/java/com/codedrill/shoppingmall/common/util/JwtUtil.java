@@ -60,7 +60,10 @@ public class JwtUtil {
         Date expiration = new Date(now.getTime() + RF_EXPIRATION_IN_MS);
         return Jwts.builder()
                 .subject(String.valueOf(userId))
-                .issuedAt(now).expiration(expiration).signWith(getSigningKey()).compact();
+                .issuedAt(now)
+                .expiration(expiration)
+                .signWith(getSigningKey())
+                .compact();
     }
 
     public Claims extractClaims(String token) {
