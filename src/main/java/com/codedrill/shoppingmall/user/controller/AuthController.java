@@ -14,6 +14,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
+import com.codedrill.shoppingmall.user.entity.User;
 
 @Slf4j
 @RestController
@@ -28,7 +29,18 @@ public class AuthController {
     public Response<UserResponse> signup(@Valid @RequestBody SignupRequest request) {
         //TODO: 회원가입 구현
 
-        UserResponse userResponse = userService.signup(request);
+        User user = userService.signup(
+                request.getEmail(),
+                request.getPassword(),
+                request.getName()
+        );
+
+        UserResponse userResponse = UserResponse.builder()
+                .id(user.getId())
+                .email(user.getEmail())
+                .name(user.getName())
+                .role(user.getRole().name())
+                .build();
 
         return Response.success(userResponse);
     }
@@ -36,9 +48,13 @@ public class AuthController {
     @PostMapping("/login")
     @Operation(summary = "로그인")
     public Response<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
-        //TODO: 로그인 구현
-        LoginResponse loginResponse = userService.login(request);
-        return Response.success(loginResponse);
+
+        String accessToken = userService.login(
+                request.getEmail(),
+                request.getPassword()
+        );
+
+        return Response.success(new LoginResponse(accessToken));
     }
 
     @PostMapping("/reissue")

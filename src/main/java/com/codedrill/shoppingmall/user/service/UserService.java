@@ -34,56 +34,45 @@ public class UserService {
 
 
     @Transactional
-    public UserResponse signup(SignupRequest request){
+    public User signup(String email, String rawPassword, String name){
 
-        //이메일 중복 체크
-        if (userRepository.findByEmail(request.getEmail()).isPresent()) {
-            throw new BusinessException(ErrorCode.DUPLICATE_EMAIL); // DUPLICATE_EMAIL 내용을 ErrorCode.java에 추가
+        //이메일 중복 확인
+        if (userRepository.findByEmail(email).isPresent()) {
+            throw new BusinessException(ErrorCode.DUPLICATE_EMAIL);
         }
 
-        //암호화
-        String encodedPassword = passwordEncoder.encode(request.getPassword());
-
+        String encodedPassword = passwordEncoder.encode(rawPassword);
 
         User user = User.builder()
-                .email(request.getEmail())
+                .email(email)
                 .password(encodedPassword)
-                .name(request.getName())
+                .name(name)
                 .role(EnumRole.USER)
                 .build();
 
-        User savedUser = userRepository.save(user);
-
-        return UserResponse.builder()
-                .id(savedUser.getId())
-                .email(savedUser.getEmail())
-                .name(savedUser.getName())
-                .role(savedUser.getRole().name())
-                .build();
+        return userRepository.save(user);
     }
 
     @Transactional(readOnly = true)
-    public LoginResponse login(LoginRequest request) {
+    public String login(String email, String password) {
 
-        //이메일 검증
-        User user = userRepository.findByEmail(request.getEmail())
+        //이메일 확인
+        User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_CREDENTIALS));
 
-        // 비밀번호 검증
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+        //비밀번호 확인
+        if (!passwordEncoder.matches(password, user.getPassword())) {
             throw new BusinessException(ErrorCode.INVALID_CREDENTIALS);
         }
 
-        // Access Token 생성
-        String accessToken = jwtUtil.generateAccessToken(
+        return jwtUtil.generateAccessToken(
                 user.getId(),
                 user.getEmail(),
                 user.getName(),
                 user.getRole().name()
         );
-
-        return new LoginResponse(accessToken);
     }
+
 
     @Transactional
     public ReissueResponse reissue(ReissueRequest request) {
