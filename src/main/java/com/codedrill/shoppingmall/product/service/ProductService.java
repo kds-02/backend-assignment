@@ -22,7 +22,7 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
+
 public class ProductService {
     private final ProductRepository productRepository;
     public ProductResponse createProduct(ProductCreateRequest request, PrincipalDetails user) {

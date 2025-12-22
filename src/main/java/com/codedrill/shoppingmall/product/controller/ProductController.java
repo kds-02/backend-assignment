@@ -37,7 +37,7 @@ public class ProductController {
         if(userId == null){
             throw new BusinessException(ErrorCode.UNAUTHORIZED);
         }
-        ProductResponse response = productService.createProduct(request, userId);
+        ProductResponse response = productService.createProduct(request, principal);
         return Response.success(response);
 
     }
