@@ -11,6 +11,10 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.codedrill.shoppingmall.common.entity.PrincipalDetails;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.GrantedAuthority;
+
 @Slf4j
 @RestController
 @RequiredArgsConstructor
@@ -21,10 +25,23 @@ public class UserController {
 
     @GetMapping
     @Operation(summary = "자신의 정보 받아오기")
-    public Response<UserResponse> getMyInfo() {
+    public Response<UserResponse> getMyInfo(@AuthenticationPrincipal PrincipalDetails principal) {
         //TODO: 자기 자신의 정보 받아오기 구현
+        String role = principal.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .findFirst()
+                .orElse(null);
 
-        return Response.success();
+
+        UserResponse userResponse = UserResponse.builder()
+                .id(principal.getUserId())
+                .email(principal.getEmail())
+                .name(principal.getUsername())
+                .role(role)
+                .build();
+
+
+        return Response.success(userResponse);
     }
 }
 
