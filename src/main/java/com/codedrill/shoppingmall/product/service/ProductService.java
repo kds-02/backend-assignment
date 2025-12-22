@@ -22,9 +22,40 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class ProductService {
-
     private final ProductRepository productRepository;
+    public ProductResponse createProduct(ProductCreateRequest request, PrincipalDetails user) {
+        if (user == null) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+
+        Product product = Product.builder()
+                .status(EnumProductStatus.PENDING)
+                .name(request.getName())
+                .price(request.getPrice())
+                .stock(request.getStock())
+                .description(request.getDescription())
+                .userId(user.getUserId())
+                .build();
+
+        Product savedProduct = productRepository.save(product);
+        return toProductResponse(savedProduct);
+
+    }
+
+    private ProductResponse toProductResponse(Product savedProduct) {
+        return ProductResponse.builder()
+                .id(savedProduct.getId())
+                .status(savedProduct.getStatus().name())
+                .name(savedProduct.getName())
+                .price(savedProduct.getPrice())
+                .stock(savedProduct.getStock())
+                .description(savedProduct.getDescription())
+                .createdAt(savedProduct.getCreatedAt())
+                .updatedAt(savedProduct.getUpdatedAt())
+                .build();
+    }
 
 }
 

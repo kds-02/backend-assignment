@@ -2,6 +2,8 @@ package com.codedrill.shoppingmall.product.controller;
 
 import com.codedrill.shoppingmall.common.consts.RestUriConst;
 import com.codedrill.shoppingmall.common.entity.PrincipalDetails;
+import com.codedrill.shoppingmall.common.exception.BusinessException;
+import com.codedrill.shoppingmall.common.exception.ErrorCode;
 import com.codedrill.shoppingmall.common.response.Response;
 import com.codedrill.shoppingmall.product.dto.*;
 import com.codedrill.shoppingmall.product.service.ProductService;
@@ -26,12 +28,18 @@ public class ProductController {
     @PostMapping
     @Operation(summary = "상품 등록")
     public Response<ProductResponse> createProduct(
+            @AuthenticationPrincipal PrincipalDetails principal,
             @Valid @RequestBody ProductCreateRequest request
 
     ) {
         //TODO: 상품 등록 구현
+        Long userId = principal.getUserId();
+        if(userId == null){
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+        ProductResponse response = productService.createProduct(request, userId);
+        return Response.success(response);
 
-        return Response.success();
     }
 
     @GetMapping
