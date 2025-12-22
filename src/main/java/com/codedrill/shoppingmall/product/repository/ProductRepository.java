@@ -12,6 +12,7 @@ import java.util.Optional;
 
 @Repository
 public interface ProductRepository extends JpaRepository<Product, Long> {
-
+    @Query("SELECT COUNT(p) FROM Product p WHERE p.userId = :userId AND p.status = 'PENDING' AND p.deletedAt IS NULL")
+    long countPendingProductsByUserId(@Param("userId") Long userId);
 }
 
