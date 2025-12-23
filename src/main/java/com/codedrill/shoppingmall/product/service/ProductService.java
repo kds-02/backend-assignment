@@ -8,6 +8,8 @@ import com.codedrill.shoppingmall.product.dto.*;
 import com.codedrill.shoppingmall.product.entity.Product;
 import com.codedrill.shoppingmall.common.enums.EnumProductStatus;
 import com.codedrill.shoppingmall.product.repository.ProductRepository;
+import com.codedrill.shoppingmall.user.entity.User;
+import com.codedrill.shoppingmall.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -25,10 +27,15 @@ import java.util.stream.Collectors;
 
 public class ProductService {
     private final ProductRepository productRepository;
+    private final UserRepository userRepository;
     public ProductResponse createProduct(ProductCreateRequest request, PrincipalDetails user) {
         if (user == null) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED);
         }
+
+        User userEntity = userRepository.findById(user.getUserId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
 
         // PENDING 상태인 상품이 이미 있으면 새로운 상품 등록 불가
         long pendingCount = productRepository.countPendingProductsByUserId(user.getUserId(), EnumProductStatus.PENDING);

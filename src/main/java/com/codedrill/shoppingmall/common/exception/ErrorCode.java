@@ -19,6 +19,10 @@ public enum ErrorCode {
     INVALID_CREDENTIALS("INVALID_CREDENTIALS", "이메일 또는 비밀번호가 올바르지 않습니다."),
     DUPLICATE_EMAIL("DUPLICATE_EMAIL", "이미 존재하는 이메일입니다."),
 
+    //유저
+    USER_NOT_FOUND("USER_NOT_FOUND", "사용자를 찾을 수 없습니다."),
+
+
     //상품
     PRODUCT_PENDING_EXISTS("PRODUCT_PENDING_EXISTS", "승인 대기 중인 상품이 이미 존재합니다.");
 
