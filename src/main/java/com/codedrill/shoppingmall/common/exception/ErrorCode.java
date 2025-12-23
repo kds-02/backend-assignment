@@ -24,7 +24,8 @@ public enum ErrorCode {
 
 
     //상품
-    PRODUCT_PENDING_EXISTS("PRODUCT_PENDING_EXISTS", "승인 대기 중인 상품이 이미 존재합니다.");
+    PRODUCT_PENDING_EXISTS("PRODUCT_PENDING_EXISTS", "승인 대기 중인 상품이 이미 존재합니다."),
+    PRODUCT_NOT_FOUND("PRODUCT_NOT_FOUND", "상품을 찾을 수 없습니다.");;
 
 
     private final String code;

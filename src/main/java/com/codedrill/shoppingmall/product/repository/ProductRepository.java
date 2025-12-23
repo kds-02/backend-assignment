@@ -58,5 +58,9 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             @Param("name") String name,
             Pageable pageable
     );
+
+    Optional<Product> findByIdAndDeletedAtIsNull(Long id);
+
+
 }
 

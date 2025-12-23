@@ -36,5 +36,9 @@ public class Product extends BaseEntity {
     @Column(nullable = false)
     private Long userId;
 
+
+    public void approve() {
+        this.status = EnumProductStatus.APPROVED;
+    }
 }
 

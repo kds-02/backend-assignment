@@ -88,10 +88,12 @@ public class ProductController {
 
     @PatchMapping("/{id}/approve")
     @Operation(summary = "상품 승인")
-    public Response<ProductResponse> approveProduct(@PathVariable Long id) {
+    public Response<ProductResponse> approveProduct(@PathVariable Long id,
+                                                    @AuthenticationPrincipal PrincipalDetails principal) {
         //TODO: 상품 승인 구현
 
-        return Response.success();
+        ProductResponse response = productService.approveProduct(id, principal);
+        return Response.success(response);
     }
 
     @PostMapping("/{id}/images")

@@ -16,8 +16,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import org.springframework.security.core.Authentication;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -97,8 +100,15 @@ public class ProductService {
     }
 
     private boolean isAdmin(PrincipalDetails principal) {
-        if (principal == null) return false;
-        return principal.getAuthorities().stream()
+        if (principal != null) {
+            return principal.getAuthorities().stream()
+                    .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
+        }
+
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null) return false;
+
+        return authentication.getAuthorities().stream()
                 .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
     }
 
@@ -111,6 +121,21 @@ public class ProductService {
                 .status(p.getStatus().name())
                 .build();
     }
+
+    @Transactional
+    public ProductResponse approveProduct(Long productId, PrincipalDetails principal) {
+        if (!isAdmin(principal)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN);
+        }
+
+        Product product = productRepository.findByIdAndDeletedAtIsNull(productId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
+
+        product.approve();
+        return toProductResponse(product);
+    }
+
+
 
 }
 
