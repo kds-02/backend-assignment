@@ -31,7 +31,7 @@
 
 - **레이어드 아키텍처**: Controller → Service → Repository → Entity
 - **인증/인가**: Spring Security + JWT
-- **데이터베이스**: PostgreSQL (메인 DB), Redis (캐시 등)
+- **데이터베이스**: MySQL (메인 DB), Redis (캐시 등)
 - **ORM**: JPA, QueryDSL(QueryDSL말고 Native Query 쓰셔도 됩니다.)
 - **API 형식**: RESTful API (`/api/v1/**`)
 - **DTO 매핑**: `MapStruct` 사용 시 반복 매핑 코드를 줄일 수 있습니다.
@@ -44,7 +44,7 @@
 ### 기술 스택
   - **Java 17+**
   - **Spring Boot** (Spring Web, Spring Data JPA, Spring Security)
-- **DB**: PostgreSQL, Redis
+  - **DB**: MySQL(트랜잭션 격리 수준은 환경에 맞게 조정 가능), Redis
 
 ### API 공통 규칙
 
@@ -1298,6 +1298,37 @@ DELETE /api/v1/products/{id}/images/{imageId}
 
 ---
 
+### 3-4. DB Transaction에 대해서 배워보기
+
+- **목표**: 포인트 도메인을 이용해 **데드락, 트랜잭션 전파, 격리 수준**을 직접 경험해 본다.
+- **주의**: TroubleShooting 유도를 위해 의도적으로 좋지 않은 구조로 작성되어 있습니다.
+
+- **과제 1: 포인트 계좌 생성 + Ledger 기록 (데드락 유도)**
+  - **엔드포인트**
+    - `POST /api/v1/points/accounts/init`
+  - **설명**
+    - 사용자의 포인트 계좌(`PointAccount`)를 생성하거나 조회한다.
+    - 동시에, 계좌가 생성/존재했다는 사실을 Ledger(`PointLedger`)에 기록한다.
+  - **해야 할 일**
+    - 코드를 분석해서 **무슨 문제가 발생한 것**인지 Trouble Shooting 해본다.
+    - 원인을 `REPORT.md` 에 정리한다. (제일 중요)
+    - 해결 방법은 자유롭게 해도 좋다. 다만, 발생 원인 분석이 더 중요하다.
+
+- **과제 2: NOT_SUPPORTED 전파를 이용한 조회 실험**
+  - **엔드포인트**
+    - `POST /api/v1/points/tx/not-supported-test-entity` (`PointTxTest` 엔티티 기반)
+  - **설명**
+    - A 메서드(`@Transactional`) 안에서 포인트 계좌를 조회/생성한다.
+    - 그 안에서 B 메서드(`@Transactional(propagation = NOT_SUPPORTED)`)를 호출해,  
+      트랜잭션을 **일시 중단(suspend)** 한 상태로 DB에 바로 insert 를 수행한다.
+    - 다시 A 메서드 안에서 **방금 B가 만든 데이터를 조회**해서, A 트랜잭션 안에서 어떻게 보이는지 확인한다.
+  - **해야 할 일**
+    - 두 엔드포인트를 여러 번 호출해 보면서, **A 트랜잭션 안에서 B(Not_SUPPORTED)가 만든 데이터가 언제/어떻게 조회되는지** 관찰한다.
+    - 어째서 B에서 만든 데이터가 A에서 보이지 않아 개수가 정상적으로 출력되지 않는지 **REPORT.md**에 작성한다.
+    - 해결 방법은 자유롭게 해도 좋다. 다만, 발생 원인 분석이 더 중요하다.
+
+---
+
 ## 4단계: 배포 & 리버스 프록시 (선택)
 
 ### 4-1. Docker 기반 배포
@@ -1416,7 +1447,7 @@ DELETE /api/v1/products/{id}/images/{imageId}
 
 ### 1. 인프라 실행 (Docker Compose)
 
-프로젝트 루트 디렉토리에서 다음 명령어로 PostgreSQL과 Redis를 실행합니다:
+프로젝트 루트 디렉토리에서 다음 명령어로 **MySQL과 Redis**를 실행합니다:
 
 ```bash
 docker-compose up -d
@@ -1463,7 +1494,7 @@ java -jar build/libs/shopping-mall-0.0.1-SNAPSHOT.jar
 
 `application.properties` 파일에서 다음 설정을 확인하고 필요시 수정하세요:
 
-- PostgreSQL 연결 정보 (기본값: localhost:5432)
+- MySQL 연결 정보 (기본값: localhost:3306, db: `shopping_mall`, user: `root` / `root` 또는 `app` / `app`)
 - Redis 연결 정보 (기본값: localhost:6379)
 - JWT Secret Key (프로덕션 환경에서는 반드시 변경 필요)
 

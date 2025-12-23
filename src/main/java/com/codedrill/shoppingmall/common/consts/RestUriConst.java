@@ -7,4 +7,5 @@ public class RestUriConst {
     public static final String REST_URI_PRODUCT = BASE_URI + "/products";
     public static final String REST_URI_ORDER = BASE_URI + "/orders";
     public static final String REST_URI_AUTH = BASE_URI + "/auth";
+    public static final String REST_URI_POINT = BASE_URI + "/points";
 }
