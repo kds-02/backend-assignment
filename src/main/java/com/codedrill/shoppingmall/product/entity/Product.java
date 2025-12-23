@@ -36,16 +36,5 @@ public class Product extends BaseEntity {
     @Column(nullable = false)
     private Long userId;
 
-    public static Product create(String name, Long price, Integer stock, String description, Long userId) {
-        return Product.builder()
-                .status(EnumProductStatus.PENDING)
-                .name(name)
-                .price(price)
-                .stock(stock)
-                .description(description)
-                .userId(userId)
-                .build();
-    }
-
 }
 
