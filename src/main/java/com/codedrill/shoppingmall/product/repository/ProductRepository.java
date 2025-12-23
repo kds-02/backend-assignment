@@ -25,5 +25,38 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             @Param("userId") Long userId,
             @Param("status") EnumProductStatus status
     );
+
+    @Query("""
+        SELECT p
+        FROM Product p
+        WHERE p.deletedAt IS NULL
+          AND p.status = :status
+          AND (:minPrice IS NULL OR p.price >= :minPrice)
+          AND (:maxPrice IS NULL OR p.price <= :maxPrice)
+          AND (:name IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', :name, '%')))
+    """)
+    Page<Product> findApprovedProducts(
+            @Param("status") EnumProductStatus status,
+            @Param("minPrice") Long minPrice,
+            @Param("maxPrice") Long maxPrice,
+            @Param("name") String name,
+            Pageable pageable
+    );
+
+
+    @Query("""
+        SELECT p
+        FROM Product p
+        WHERE p.deletedAt IS NULL
+          AND (:minPrice IS NULL OR p.price >= :minPrice)
+          AND (:maxPrice IS NULL OR p.price <= :maxPrice)
+          AND (:name IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', :name, '%')))
+    """)
+    Page<Product> findAllProductsForAdmin(
+            @Param("minPrice") Long minPrice,
+            @Param("maxPrice") Long maxPrice,
+            @Param("name") String name,
+            Pageable pageable
+    );
 }
 

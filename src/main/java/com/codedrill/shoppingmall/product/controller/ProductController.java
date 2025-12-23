@@ -44,10 +44,19 @@ public class ProductController {
 
     @GetMapping
     @Operation(summary = "상품 목록 조회")
-    public Response<ProductPageResponse> getProductList() {
+    public Response<ProductPageResponse> getProductList(
+            @RequestParam(required = false, defaultValue = "0") Integer page,
+            @RequestParam(required = false, defaultValue = "10") Integer size,
+            @RequestParam(required = false) Long minPrice,
+            @RequestParam(required = false) Long maxPrice,
+            @RequestParam(required = false) String name,
+            @AuthenticationPrincipal PrincipalDetails principal
+    ) {
         //TODO: 상품 목록 조회 구현
 
-        return Response.success();
+        ProductPageResponse response =
+                productService.getProductList(page, size, minPrice, maxPrice, name, principal);
+        return Response.success(response);
     }
 
     @GetMapping("/{id}")

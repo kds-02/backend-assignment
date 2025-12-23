@@ -1,6 +1,7 @@
 package com.codedrill.shoppingmall.product.service;
 
 import com.codedrill.shoppingmall.common.entity.PrincipalDetails;
+import com.codedrill.shoppingmall.common.enums.EnumRole;
 import com.codedrill.shoppingmall.common.exception.BusinessException;
 import com.codedrill.shoppingmall.common.exception.ErrorCode;
 import com.codedrill.shoppingmall.common.util.SecurityUtil;
@@ -67,6 +68,47 @@ public class ProductService {
                 .description(savedProduct.getDescription())
                 .createdAt(savedProduct.getCreatedAt())
                 .updatedAt(savedProduct.getUpdatedAt())
+                .build();
+    }
+
+    public ProductPageResponse getProductList(Integer page, Integer size,
+                                              Long minPrice, Long maxPrice, String name,
+                                              PrincipalDetails principal) {
+
+        int p = (page == null) ? 0 : page;
+        int s = (size == null) ? 10 : size;
+        Pageable pageable = PageRequest.of(p, s);
+
+        boolean isAdmin = isAdmin(principal);
+
+        Page<Product> result = isAdmin
+                ? productRepository.findAllProductsForAdmin(minPrice, maxPrice, name, pageable)
+                : productRepository.findApprovedProducts(EnumProductStatus.APPROVED, minPrice, maxPrice, name, pageable);
+
+        return ProductPageResponse.builder()
+                .content(result.getContent().stream()
+                        .map(this::toProductSummary)
+                        .toList())
+                .totalElements(result.getTotalElements())
+                .totalPages(result.getTotalPages())
+                .page(p)
+                .size(s)
+                .build();
+    }
+
+    private boolean isAdmin(PrincipalDetails principal) {
+        if (principal == null) return false;
+        return principal.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
+    }
+
+    private ProductSummary toProductSummary(Product p) {
+        return ProductSummary.builder()
+                .id(p.getId())
+                .name(p.getName())
+                .price(p.getPrice())
+                .stock(p.getStock())
+                .status(p.getStatus().name())
                 .build();
     }
 
