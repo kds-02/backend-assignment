@@ -31,7 +31,7 @@ public class ProductService {
         }
 
         // PENDING 상태인 상품이 이미 있으면 새로운 상품 등록 불가
-        long pendingCount = productRepository.countPendingProductsByUserId(user.getUserId());
+        long pendingCount = productRepository.countPendingProductsByUserId(user.getUserId(), EnumProductStatus.PENDING);
         if (pendingCount > 0) {
             throw new BusinessException(ErrorCode.PRODUCT_PENDING_EXISTS);
         }

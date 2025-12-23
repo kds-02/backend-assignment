@@ -21,7 +21,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
           AND p.status = :status
           AND p.deletedAt IS NULL
     """)
-    long countByUserIdAndStatus(
+    long countPendingProductsByUserId(
             @Param("userId") Long userId,
             @Param("status") EnumProductStatus status
     );
