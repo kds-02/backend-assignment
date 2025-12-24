@@ -40,5 +40,12 @@ public class Product extends BaseEntity {
     public void approve() {
         this.status = EnumProductStatus.APPROVED;
     }
+
+    public void update(String name, Long price, Integer stock, String description) {
+        this.name = name;
+        this.price = price;
+        this.stock = stock;
+        this.description = description;
+    }
 }
 

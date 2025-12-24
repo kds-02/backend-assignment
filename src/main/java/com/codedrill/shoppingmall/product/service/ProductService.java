@@ -171,6 +171,30 @@ public class ProductService {
                 .build();
     }
 
+    @Transactional
+    public ProductResponse updateProduct(Long productId, ProductUpdateRequest request, PrincipalDetails principal) {
+        if (principal == null) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+
+        Product product = productRepository.findByIdAndDeletedAtIsNull(productId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
+
+        boolean isAdmin = isAdmin(principal);
+        boolean isOwner = principal.getUserId() != null && principal.getUserId().equals(product.getUserId());
+        if (!isAdmin && !isOwner) {
+            throw new BusinessException(ErrorCode.FORBIDDEN);
+        }
+
+        if (request.getName() == null || request.getPrice() == null || request.getStock() == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "모든 필수 필드를 입력해주세요.");
+        }
+
+        product.update(request.getName(), request.getPrice(), request.getStock(), request.getDescription());
+        return toProductResponse(product);
+    }
+
+
 
 }
 

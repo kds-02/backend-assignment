@@ -72,11 +72,12 @@ public class ProductController {
     @Operation(summary = "상품 수정")
     public Response<ProductResponse> updateProduct(
             @PathVariable Long id,
-            @Valid @RequestBody ProductUpdateRequest request
+            @Valid @RequestBody ProductUpdateRequest request,
+            @AuthenticationPrincipal PrincipalDetails principal
     ) {
         //TODO: 상품 수정 구현
-
-        return Response.success();
+        ProductResponse response = productService.updateProduct(id, request, principal);
+        return Response.success(response);
     }
 
     @DeleteMapping("/{id}")
