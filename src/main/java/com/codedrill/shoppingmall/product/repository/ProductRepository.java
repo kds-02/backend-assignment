@@ -59,8 +59,30 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             Pageable pageable
     );
 
+    @Query("""
+        SELECT p
+        FROM Product p
+        WHERE p.deletedAt IS NULL
+          AND (
+                p.status = :status
+                OR (p.userId = :userId)
+          )
+          AND (:minPrice IS NULL OR p.price >= :minPrice)
+          AND (:maxPrice IS NULL OR p.price <= :maxPrice)
+          AND (:name IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', :name, '%')))
+    """)
+    Page<Product> findApprovedOrOwnedProducts(
+            @Param("status") EnumProductStatus status,
+            @Param("userId") Long userId,
+            @Param("minPrice") Long minPrice,
+            @Param("maxPrice") Long maxPrice,
+            @Param("name") String name,
+            Pageable pageable
+    );
+
+
     Optional<Product> findByIdAndDeletedAtIsNull(Long id);
 
-
+    Optional<Product> findByIdAndStatusAndDeletedAtIsNull(Long id, EnumProductStatus status);
 }
 

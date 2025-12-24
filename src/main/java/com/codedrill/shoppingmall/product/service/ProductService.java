@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import org.springframework.security.core.Authentication;
+import com.codedrill.shoppingmall.common.enums.EnumProductStatus;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -37,7 +38,7 @@ public class ProductService {
             throw new BusinessException(ErrorCode.UNAUTHORIZED);
         }
 
-        User userEntity = userRepository.findById(user.getUserId())
+        userRepository.findById(user.getUserId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
 
@@ -83,11 +84,15 @@ public class ProductService {
         Pageable pageable = PageRequest.of(p, s);
 
         boolean isAdmin = isAdmin(principal);
+        Long requesterId = principal != null ? principal.getUserId() : null;
 
         Page<Product> result = isAdmin
                 ? productRepository.findAllProductsForAdmin(minPrice, maxPrice, name, pageable)
-                : productRepository.findApprovedProducts(EnumProductStatus.APPROVED, minPrice, maxPrice, name, pageable);
-
+                : requesterId != null
+                ? productRepository.findApprovedOrOwnedProducts(
+                EnumProductStatus.APPROVED, requesterId, minPrice, maxPrice, name, pageable)
+                : productRepository.findApprovedProducts(
+                EnumProductStatus.APPROVED, minPrice, maxPrice, name, pageable);
         return ProductPageResponse.builder()
                 .content(result.getContent().stream()
                         .map(this::toProductSummary)
@@ -135,6 +140,36 @@ public class ProductService {
         return toProductResponse(product);
     }
 
+    @Transactional(readOnly = true)
+    public ProductDetailResponse getProduct(Long productId, PrincipalDetails principal) {
+        boolean isAdmin = isAdmin(principal);
+        Long requesterId = principal != null ? principal.getUserId() : null;
+
+        Product product = productRepository.findByIdAndDeletedAtIsNull(productId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
+
+        if (product.getStatus() != EnumProductStatus.APPROVED) {
+            boolean isOwner = requesterId != null && requesterId.equals(product.getUserId());
+            if (!isAdmin && !isOwner) {
+                throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND);
+            }
+        }
+
+        return toProductDetailResponse(product);
+    }
+
+    private ProductDetailResponse toProductDetailResponse(Product product) {
+        return ProductDetailResponse.builder()
+                .id(product.getId())
+                .status(product.getStatus().name())
+                .name(product.getName())
+                .price(product.getPrice())
+                .stock(product.getStock())
+                .description(product.getDescription())
+                .createdAt(product.getCreatedAt())
+                .updatedAt(product.getUpdatedAt())
+                .build();
+    }
 
 
 }

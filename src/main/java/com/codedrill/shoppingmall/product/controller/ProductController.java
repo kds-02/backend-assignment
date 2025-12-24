@@ -61,10 +61,11 @@ public class ProductController {
 
     @GetMapping("/{id}")
     @Operation(summary = "상품 단건 조회")
-    public Response<ProductDetailResponse> getProduct(@PathVariable Long id) {
+    public Response<ProductDetailResponse> getProduct(@PathVariable Long id,
+                                                      @AuthenticationPrincipal PrincipalDetails principal) {
         //TODO: 상품 단건 조회 구현
-
-        return Response.success();
+        ProductDetailResponse response = productService.getProduct(id, principal);
+        return Response.success(response);
     }
 
     @PutMapping("/{id}")
