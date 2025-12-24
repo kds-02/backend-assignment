@@ -75,6 +75,7 @@ public class ProductService {
                 .build();
     }
 
+    @Transactional
     public ProductPageResponse getProductList(Integer page, Integer size,
                                               Long minPrice, Long maxPrice, String name,
                                               PrincipalDetails principal) {
@@ -117,6 +118,7 @@ public class ProductService {
                 .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
     }
 
+
     private ProductSummary toProductSummary(Product p) {
         return ProductSummary.builder()
                 .id(p.getId())
@@ -158,6 +160,7 @@ public class ProductService {
         return toProductDetailResponse(product);
     }
 
+    @Transactional
     private ProductDetailResponse toProductDetailResponse(Product product) {
         return ProductDetailResponse.builder()
                 .id(product.getId())
@@ -194,6 +197,22 @@ public class ProductService {
         return toProductResponse(product);
     }
 
+    @Transactional
+    public void deleteProduct(Long productId, PrincipalDetails principal) {
+        if (principal == null) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+        Product product = productRepository.findByIdAndDeletedAtIsNull(productId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
+
+        boolean isAdmin = isAdmin(principal);
+        boolean isOwner = principal.getUserId() != null && principal.getUserId().equals(product.getUserId());
+        if (!isAdmin && !isOwner) {
+            throw new BusinessException(ErrorCode.FORBIDDEN);
+        }
+
+        product.softDelete();
+    }
 
 
 }

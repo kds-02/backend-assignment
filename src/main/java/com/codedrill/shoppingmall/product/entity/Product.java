@@ -4,6 +4,8 @@ import com.codedrill.shoppingmall.common.entity.BaseEntity;
 import com.codedrill.shoppingmall.common.enums.EnumProductStatus;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.Where;
 
 @Entity
 @Table(name = "products")
@@ -11,6 +13,8 @@ import lombok.*;
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
+@SQLDelete(sql = "UPDATE products SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?")
+@Where(clause = "deleted_at IS NULL")
 public class Product extends BaseEntity {
 
     @Id

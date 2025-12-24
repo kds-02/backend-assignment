@@ -82,9 +82,10 @@ public class ProductController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "상품 삭제 (Soft Delete)")
-    public Response<Void> deleteProduct(@PathVariable Long id) {
+    public Response<Void> deleteProduct(@PathVariable Long id,
+                                        @AuthenticationPrincipal PrincipalDetails principal) {
         //TODO: 상품 삭제 구현
-
+        productService.deleteProduct(id, principal);
         return Response.success();
     }
 
