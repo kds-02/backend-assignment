@@ -26,11 +26,13 @@ public class OrderController {
     @PostMapping
     @Operation(summary = "주문 생성")
     public Response<OrderResponse> createOrder(
+            @AuthenticationPrincipal PrincipalDetails principal,
             @Valid @RequestBody OrderCreateRequest request
     ) {
         //TODO: 주문 생성 구현
-
-        return Response.success();
+        Long userId = principal.getUserId();
+        OrderResponse response = orderService.createOrder(userId, request);
+        return Response.success(response);
     }
 
     @GetMapping("/my")

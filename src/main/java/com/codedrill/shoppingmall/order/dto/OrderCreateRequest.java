@@ -11,6 +11,8 @@ import java.util.List;
 @NoArgsConstructor
 public class OrderCreateRequest {
 
+    @Valid
+    @NotEmpty(message = "최소 1개 이상의 주문 항목이 필요합니다.")
     private List<OrderItemRequest> items;
 }
 

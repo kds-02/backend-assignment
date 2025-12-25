@@ -25,7 +25,11 @@ public enum ErrorCode {
 
     //상품
     PRODUCT_PENDING_EXISTS("PRODUCT_PENDING_EXISTS", "승인 대기 중인 상품이 이미 존재합니다."),
-    PRODUCT_NOT_FOUND("PRODUCT_NOT_FOUND", "상품을 찾을 수 없습니다.");;
+    PRODUCT_NOT_APPROVED("PRODUCT_NOT_APPROVED", "승인되지 않은 상품입니다."),
+    PRODUCT_NOT_FOUND("PRODUCT_NOT_FOUND", "상품을 찾을 수 없습니다."),
+
+    //주문
+    INSUFFICIENT_STOCK("INSUFFICIENT_STOCK", "재고가 부족합니다.");
 
 
     private final String code;

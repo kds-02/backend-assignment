@@ -11,8 +11,11 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class OrderItemRequest {
 
+    @NotNull(message = "productId는 필수입니다.")
     private Long productId;
 
+    @NotNull(message = "quantity는 필수입니다.")
+    @Min(value = 1, message = "quantity는 1 이상이어야 합니다.")
     private Integer quantity;
 }
 
