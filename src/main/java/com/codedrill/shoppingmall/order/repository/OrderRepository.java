@@ -12,6 +12,13 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface OrderRepository extends JpaRepository<Order, Long> {
-
+    @Query("""
+        SELECT o
+        FROM Order o
+        WHERE o.user.id = :userId
+          AND o.deletedAt IS NULL
+        ORDER BY o.createdAt DESC
+    """)
+    Page<Order> findByUserIdAndDeletedAtIsNull(@Param("userId") Long userId, Pageable pageable);
 }
 

@@ -2,6 +2,8 @@ package com.codedrill.shoppingmall.order.controller;
 
 import com.codedrill.shoppingmall.common.consts.RestUriConst;
 import com.codedrill.shoppingmall.common.entity.PrincipalDetails;
+import com.codedrill.shoppingmall.common.exception.BusinessException;
+import com.codedrill.shoppingmall.common.exception.ErrorCode;
 import com.codedrill.shoppingmall.common.response.Response;
 import com.codedrill.shoppingmall.order.dto.OrderCreateRequest;
 import com.codedrill.shoppingmall.order.dto.OrderDetailResponse;
@@ -37,10 +39,15 @@ public class OrderController {
 
     @GetMapping("/my")
     @Operation(summary = "내 주문 목록 조회")
-    public Response<Page<OrderResponse>> getMyOrders() {
+    public Response<Page<OrderResponse>> getMyOrders(@RequestParam(required = false, defaultValue = "0") Integer page,
+                                                     @RequestParam(required = false, defaultValue = "10") Integer size,
+                                                     @AuthenticationPrincipal PrincipalDetails principal) {
         //TODO: 내 주문 목록 조회 구현
-
-        return Response.success();
+        if (principal == null || principal.getUserId() == null) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+        Page<OrderResponse> response = orderService.getMyOrders(principal.getUserId(), page, size);
+        return Response.success(response);
     }
 
     @GetMapping("/{id}")

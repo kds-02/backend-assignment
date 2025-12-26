@@ -107,4 +107,21 @@ public class OrderService {
                 .build();
     }
 
+    @Transactional(readOnly = true)
+    public Page<OrderResponse> getMyOrders(Long userId, Integer page, Integer size) {
+        if (userId == null) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+
+        userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        int p = (page == null) ? 0 : page;
+        int s = (size == null) ? 10 : size;
+        Pageable pageable = PageRequest.of(p, s);
+
+        Page<Order> orders = orderRepository.findByUserIdAndDeletedAtIsNull(userId, pageable);
+        return orders.map(this::toOrderResponse);
+
+    }
 }
