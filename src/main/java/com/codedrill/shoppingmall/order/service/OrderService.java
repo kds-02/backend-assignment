@@ -38,63 +38,38 @@ public class OrderService {
     private final ProductRepository productRepository;
 
 
-    // Order 전용 임시 데이터
-    private static class OrderItemData {
-        private final Product product;
-        private final Long price;
-        private final Integer quantity;
-
-        public OrderItemData(Product product, Long price, Integer quantity) {
-            this.product = product;
-            this.price = price;
-            this.quantity = quantity;
-        }
-
-        public Product getProduct() {
-            return product;
-        }
-
-        public Long getPrice() {
-            return price;
-        }
-
-        public Integer getQuantity() {
-            return quantity;
-        }
-    }
-
 
     @Transactional
     public OrderResponse createOrder(Long userId, OrderCreateRequest request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
 
-        List<OrderItemData> itemDataList = request.getItems().stream()
-                .map(itemRequest -> {
-                    Product product = productRepository.findByIdAndDeletedAtIsNull(itemRequest.getProductId())
-                            .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
+        List<Product> orderedProducts = new ArrayList<>();
+        List<Integer> quantities = new ArrayList<>();
+        long totalPrice = 0L;
 
-                    // 승인된 상품만 주문 가능
-                    if (product.getStatus() != EnumProductStatus.APPROVED) {
-                        throw new BusinessException(ErrorCode.PRODUCT_NOT_APPROVED);
-                    }
+        // 승인된 상품만 주문 가능
+        for (OrderItemRequest itemRequest : request.getItems()) {
+            Product product = productRepository.findByIdAndDeletedAtIsNull(itemRequest.getProductId())
+                    .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
 
-                    // 재고 검증
-                    if (product.getStock() < itemRequest.getQuantity()) {
-                        throw new BusinessException(ErrorCode.INSUFFICIENT_STOCK);
-                    }
+            // 재고 검증
+            if (product.getStatus() != EnumProductStatus.APPROVED) {
+                throw new BusinessException(ErrorCode.PRODUCT_NOT_APPROVED);
+            }
 
-                    // 재고 차감
-                    product.decreaseStock(itemRequest.getQuantity());
+            // 재고 차감
+            if (product.getStock() < itemRequest.getQuantity()) {
+                throw new BusinessException(ErrorCode.INSUFFICIENT_STOCK);
+            }
 
-                    return new OrderItemData(product, product.getPrice(), itemRequest.getQuantity());
-                })
-                .collect(Collectors.toList());
+            product.decreaseStock(itemRequest.getQuantity());
 
         // 총 가격 계산
-        Long totalPrice = itemDataList.stream()
-                .mapToLong(item -> item.getPrice() * item.getQuantity())
-                .sum();
+            orderedProducts.add(product);
+            quantities.add(itemRequest.getQuantity());
+            totalPrice += product.getPrice() * itemRequest.getQuantity();
+        }
 
         // 주문 생성
         Order order = Order.builder()
@@ -106,17 +81,15 @@ public class OrderService {
         Order savedOrder = orderRepository.save(order);
 
         // OrderItem 생성 및 저장
-        List<OrderItem> orderItems = itemDataList.stream()
-                .map(itemData -> {
-                    OrderItem orderItem = OrderItem.builder()
-                            .order(savedOrder)
-                            .product(itemData.getProduct())
-                            .price(itemData.getPrice())
-                            .quantity(itemData.getQuantity())
-                            .build();
-                    return orderItemRepository.save(orderItem);
-                })
-                .collect(Collectors.toList());
+        for (int i = 0; i < orderedProducts.size(); i++) {
+            OrderItem orderItem = OrderItem.builder()
+                    .order(savedOrder)
+                    .product(orderedProducts.get(i))
+                    .price(orderedProducts.get(i).getPrice())
+                    .quantity(quantities.get(i))
+                    .build();
+            orderItemRepository.save(orderItem);
+        }
 
         return toOrderResponse(savedOrder);
 
