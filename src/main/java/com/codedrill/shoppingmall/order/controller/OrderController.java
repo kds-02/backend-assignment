@@ -52,10 +52,12 @@ public class OrderController {
 
     @GetMapping("/{id}")
     @Operation(summary = "주문 상세 조회")
-    public Response<OrderDetailResponse> getOrder(@PathVariable Long id) {
+    public Response<OrderDetailResponse> getOrder(@PathVariable Long id,
+                                                  @AuthenticationPrincipal PrincipalDetails principal) {
         //TODO: 주문 상세 조회 구현
 
-        return Response.success();
+        OrderDetailResponse order = orderService.getOrder(id, principal);
+        return Response.success(order);
     }
 
     @PatchMapping("/{id}/pay")

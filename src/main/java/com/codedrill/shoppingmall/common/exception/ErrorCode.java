@@ -29,7 +29,10 @@ public enum ErrorCode {
     PRODUCT_NOT_FOUND("PRODUCT_NOT_FOUND", "상품을 찾을 수 없습니다."),
 
     //주문
+    ORDER_NOT_FOUND("ORDER_NOT_FOUND", "주문을 찾을 수 없습니다"),
+    ORDER_ACCESS_DENIED("ORDER_ACCESS_DENIED", "권한이 없습니다."),
     INSUFFICIENT_STOCK("INSUFFICIENT_STOCK", "재고가 부족합니다.");
+
 
 
     private final String code;

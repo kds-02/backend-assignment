@@ -107,7 +107,7 @@ public class OrderService {
                 .build();
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public Page<OrderResponse> getMyOrders(Long userId, Integer page, Integer size) {
         if (userId == null) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED);
@@ -124,4 +124,42 @@ public class OrderService {
         return orders.map(this::toOrderResponse);
 
     }
+
+    public OrderDetailResponse getOrder(Long id, PrincipalDetails user) {
+        Order order = orderRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
+
+        // 권한 체크: 본인 주문이거나 ADMIN만 조회 가능
+        if (!SecurityUtil.isAdmin(user) && !order.getUser().getId().equals(user.getUserId())) {
+            throw new BusinessException(ErrorCode.ORDER_ACCESS_DENIED);
+        }
+
+        // OrderItem 조회
+        List<OrderItem> orderItems = orderItemRepository.findByOrderId(id);
+
+        return toOrderDetailResponse(order, orderItems);
+    }
+
+    private OrderDetailResponse toOrderDetailResponse(Order order, List<OrderItem> items) {
+        List<OrderItemResponse> itemDtos = items.stream()
+                .map(i -> OrderItemResponse.builder()
+                        .id(i.getId())
+                        .productId(i.getProduct().getId())
+                        .productName(i.getProduct().getName())   // 상품 엔티티의 필드명에 맞게 조정
+                        .price(i.getPrice())
+                        .quantity(i.getQuantity())
+                        .build())
+                .toList();
+
+        return OrderDetailResponse.builder()
+                .id(order.getId())
+                .userId(order.getUser().getId())
+                .status(order.getStatus().name())
+                .totalPrice(order.getTotalPrice())
+                .items(itemDtos)
+                .createdAt(order.getCreatedAt())
+                .updatedAt(order.getUpdatedAt())
+                .build();
+    }
+
 }
