@@ -81,10 +81,11 @@ public class OrderController {
 
     @PatchMapping("/{id}/complete")
     @Operation(summary = "주문 완료")
-    public Response<OrderResponse> completeOrder(@PathVariable Long id) {
+    public Response<OrderResponse> completeOrder(@PathVariable Long id,
+                                                 @AuthenticationPrincipal Object principal){
         //TODO: 주문 완료 구현
-
-        return Response.success();
+        OrderResponse response = orderService.completeOrder(id, principal);
+        return Response.success(response);
     }
 
 }

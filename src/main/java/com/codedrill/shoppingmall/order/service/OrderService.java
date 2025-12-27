@@ -243,4 +243,17 @@ public class OrderService {
         order.changeStatus(EnumOrderStatus.CANCELLED);
         return toOrderResponse(order);
     }
+
+    @Transactional
+    public OrderResponse completeOrder(Long id, Object principal) {
+        Order order = getActiveOrder(id);
+        validateAccess(order, principal, true);
+
+        if (order.getStatus() != EnumOrderStatus.PAID) {
+            throw new BusinessException(ErrorCode.INVALID_ORDER_STATUS, "완료할 수 없는 주문 상태입니다.");
+        }
+
+        order.changeStatus(EnumOrderStatus.COMPLETED);
+        return toOrderResponse(order);
+    }
 }
