@@ -29,5 +29,8 @@ public class Order extends BaseEntity {
     @Column(nullable = false)
     private Long totalPrice;
 
+    public void changeStatus(EnumOrderStatus status) {
+        this.status = status;
+    }
 }
 

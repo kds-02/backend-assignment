@@ -31,6 +31,7 @@ public enum ErrorCode {
     //주문
     ORDER_NOT_FOUND("ORDER_NOT_FOUND", "주문을 찾을 수 없습니다"),
     ORDER_ACCESS_DENIED("ORDER_ACCESS_DENIED", "권한이 없습니다."),
+    INVALID_ORDER_STATUS("INVALID_ORDER_STATUS", "잘못된 주문 상태입니다."),
     INSUFFICIENT_STOCK("INSUFFICIENT_STOCK", "재고가 부족합니다.");
 
 

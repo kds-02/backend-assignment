@@ -20,6 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -162,4 +163,66 @@ public class OrderService {
                 .build();
     }
 
+
+    @Transactional
+    public OrderResponse payOrder(Long id, Object principal) {
+        Order order = getActiveOrder(id);
+        validateAccess(order, principal, false);
+
+        if (order.getStatus() != EnumOrderStatus.CREATED) {
+            throw new BusinessException(ErrorCode.INVALID_ORDER_STATUS, "결제할 수 없는 주문 상태입니다.");
+        }
+
+        order.changeStatus(EnumOrderStatus.PAID);
+        return toOrderResponse(order);
+    }
+
+    private Order getActiveOrder(Long id) {
+        Order order = orderRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
+
+        if (order.getDeletedAt() != null) {
+            throw new BusinessException(ErrorCode.ORDER_NOT_FOUND);
+        }
+
+        return order;
+    }
+
+    private void validateAccess(Order order, Object principal, boolean adminOnly) {
+        if (principal == null) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+
+        boolean isAdmin = isAdmin(principal);
+        if (adminOnly && !isAdmin) {
+            throw new BusinessException(ErrorCode.FORBIDDEN);
+        }
+
+        Long requesterId = extractUserId(principal);
+        if (!isAdmin && requesterId != null && !order.getUser().getId().equals(requesterId)) {
+            throw new BusinessException(ErrorCode.ORDER_ACCESS_DENIED);
+        }
+    }
+
+    private boolean isAdmin(Object principal) {
+        if (principal instanceof PrincipalDetails principalDetails) {
+            return SecurityUtil.isAdmin(principalDetails);
+        }
+
+        if (principal instanceof UserDetails userDetails) {
+            return userDetails.getAuthorities().stream()
+                    .anyMatch(auth -> "ROLE_ADMIN".equals(auth.getAuthority()));
+        }
+
+        return false;
+    }
+
+
+    private Long extractUserId(Object principal) {
+        if (principal instanceof PrincipalDetails principalDetails) {
+            return principalDetails.getUserId();
+        }
+
+        return null;
+    }
 }

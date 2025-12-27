@@ -62,10 +62,11 @@ public class OrderController {
 
     @PatchMapping("/{id}/pay")
     @Operation(summary = "주문 결제")
-    public Response<OrderResponse> payOrder(@PathVariable Long id) {
+    public Response<OrderResponse> payOrder(@PathVariable Long id,
+                                            @AuthenticationPrincipal Object principal) {
         //TODO: 주문 결제 구현
-
-        return Response.success();
+        OrderResponse response = orderService.payOrder(id, principal);
+        return Response.success(response);
     }
 
     @PatchMapping("/{id}/cancel")
