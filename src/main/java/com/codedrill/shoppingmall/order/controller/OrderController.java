@@ -71,10 +71,12 @@ public class OrderController {
 
     @PatchMapping("/{id}/cancel")
     @Operation(summary = "주문 취소")
-    public Response<OrderResponse> cancelOrder(@PathVariable Long id) {
+    public Response<OrderResponse> cancelOrder(@PathVariable Long id,
+                                               @AuthenticationPrincipal Object principal) {
         //TODO: 주문 취소 구현
+        OrderResponse response = orderService.cancelOrder(id, principal);
 
-        return Response.success();
+        return Response.success(response);
     }
 
     @PatchMapping("/{id}/complete")

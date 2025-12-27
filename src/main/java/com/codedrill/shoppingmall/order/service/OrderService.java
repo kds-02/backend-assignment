@@ -225,4 +225,22 @@ public class OrderService {
 
         return null;
     }
+
+    @Transactional
+    public OrderResponse cancelOrder(Long id, Object principal) {
+        Order order = getActiveOrder(id);
+        validateAccess(order, principal, false);
+
+        if (order.getStatus() != EnumOrderStatus.CREATED) {
+            throw new BusinessException(ErrorCode.INVALID_ORDER_STATUS, "취소할 수 없는 주문 상태입니다.");
+        }
+
+        List<OrderItem> items = orderItemRepository.findByOrderId(id);
+        for (OrderItem item : items) {
+            item.getProduct().increaseStock(item.getQuantity());
+        }
+
+        order.changeStatus(EnumOrderStatus.CANCELLED);
+        return toOrderResponse(order);
+    }
 }
