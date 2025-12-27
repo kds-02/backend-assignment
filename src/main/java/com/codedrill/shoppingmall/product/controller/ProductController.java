@@ -33,8 +33,7 @@ public class ProductController {
 
     ) {
         //TODO: 상품 등록 구현
-        Long userId = principal.getUserId();
-        if(userId == null){
+        if (principal == null || principal.getUserId() == null){
             throw new BusinessException(ErrorCode.UNAUTHORIZED);
         }
         ProductResponse response = productService.createProduct(request, principal);

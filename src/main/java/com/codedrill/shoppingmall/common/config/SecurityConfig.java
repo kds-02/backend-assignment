@@ -40,7 +40,14 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         //TODO: 적절하게 리소스별 권한 설정
-                        .anyRequest().permitAll()
+                        .requestMatchers("/api/v1/auth/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/products/**").permitAll()
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/products/*/approve").hasRole("ADMIN")
+                        .requestMatchers("/api/v1/products/**").hasAnyRole("USER", "ADMIN")
+                        .requestMatchers("/api/v1/orders/**").hasAnyRole("USER", "ADMIN")
+                        .requestMatchers("/api/v1/users/**").hasAnyRole("USER", "ADMIN")
+                        .requestMatchers("/api/v1/points/**").hasAnyRole("USER", "ADMIN")
+                        .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .exceptionHandling(exception -> exception

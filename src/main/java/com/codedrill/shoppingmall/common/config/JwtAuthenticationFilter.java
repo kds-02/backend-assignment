@@ -42,7 +42,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 Long userId = jwtUtil.extractUserId(token);
                 String name = jwtUtil.extractUserName(token);
                 String email = jwtUtil.extractEmail(token);
-                String role = jwtUtil.extractRole(token);
+                String role = ensureRolePrefix(jwtUtil.extractRole(token));
 
                 Collection<? extends GrantedAuthority> authorities = Collections.singletonList(new SimpleGrantedAuthority(role));
 
@@ -74,6 +74,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return bearerToken.substring(7);
         }
         return null;
+    }
+
+    private String ensureRolePrefix(String role) {
+        if (role == null) {
+            return null;
+        }
+
+        return role.startsWith("ROLE_") ? role : "ROLE_" + role;
     }
 }
 

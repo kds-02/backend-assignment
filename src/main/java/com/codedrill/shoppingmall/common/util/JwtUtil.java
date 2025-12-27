@@ -35,6 +35,8 @@ public class JwtUtil {
         Date now = new Date();
         Date expiration = new Date(now.getTime() + AC_EXPIRATION_IN_MS);
 
+        String roleClaim = ensureRolePrefix(role);
+
         return Jwts.builder()
                 // 토큰 주체: 사용자 식별자
                 .subject(String.valueOf(userId))
@@ -43,6 +45,7 @@ public class JwtUtil {
                 .claim("email", email)
                 .claim("name", name)
                 .claim("role", role)
+                .claim("role", roleClaim)
 
                 // 발급 시간 / 만료 시간
                 .issuedAt(now)
@@ -59,6 +62,7 @@ public class JwtUtil {
         //TODO: refreshToken 생성 로직 구현
         Date now = new Date();
         Date expiration = new Date(now.getTime() + RF_EXPIRATION_IN_MS);
+
 
         // refresh token은 "재발급 권한"이라서 식별자(jti)를 반드시 둔다
         String refreshTokenId = UUID.randomUUID().toString();
@@ -98,6 +102,14 @@ public class JwtUtil {
     public String extractRole(String token) {
         Claims claims = extractClaims(token);
         return claims.get("role", String.class);
+    }
+
+    private String ensureRolePrefix(String role) {
+        if (role == null) {
+            return null;
+        }
+
+        return role.startsWith("ROLE_") ? role : "ROLE_" + role;
     }
 
     public boolean isTokenExpired(String token) {

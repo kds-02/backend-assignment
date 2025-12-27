@@ -32,6 +32,9 @@ public class OrderController {
             @Valid @RequestBody OrderCreateRequest request
     ) {
         //TODO: 주문 생성 구현
+        if (principal == null || principal.getUserId() == null) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
         Long userId = principal.getUserId();
         OrderResponse response = orderService.createOrder(userId, request);
         return Response.success(response);
@@ -55,7 +58,9 @@ public class OrderController {
     public Response<OrderDetailResponse> getOrder(@PathVariable Long id,
                                                   @AuthenticationPrincipal PrincipalDetails principal) {
         //TODO: 주문 상세 조회 구현
-
+        if (principal == null || principal.getUserId() == null) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
         OrderDetailResponse order = orderService.getOrder(id, principal);
         return Response.success(order);
     }
@@ -65,6 +70,9 @@ public class OrderController {
     public Response<OrderResponse> payOrder(@PathVariable Long id,
                                             @AuthenticationPrincipal Object principal) {
         //TODO: 주문 결제 구현
+        if (principal == null) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
         OrderResponse response = orderService.payOrder(id, principal);
         return Response.success(response);
     }
@@ -74,6 +82,9 @@ public class OrderController {
     public Response<OrderResponse> cancelOrder(@PathVariable Long id,
                                                @AuthenticationPrincipal Object principal) {
         //TODO: 주문 취소 구현
+        if (principal == null) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
         OrderResponse response = orderService.cancelOrder(id, principal);
 
         return Response.success(response);
@@ -84,6 +95,9 @@ public class OrderController {
     public Response<OrderResponse> completeOrder(@PathVariable Long id,
                                                  @AuthenticationPrincipal Object principal){
         //TODO: 주문 완료 구현
+        if (principal == null) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
         OrderResponse response = orderService.completeOrder(id, principal);
         return Response.success(response);
     }

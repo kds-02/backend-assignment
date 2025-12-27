@@ -16,7 +16,7 @@ public class SecurityUtil {
      * - "ROLE_ADMIN" 형태 확인
      */
     public static boolean hasRole(PrincipalDetails user, EnumRole role) {
-        if (user == null || user.getAuthorities().isEmpty()) {
+        if (user == null || user.getAuthorities() == null || user.getAuthorities().isEmpty()) {
             return false;
         }
         
